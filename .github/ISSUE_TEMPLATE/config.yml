@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: "Community Support - Discussion Forums"
+    url: "https://discourse.firez.one"
+    about: "Ask questions, get help from other Firezone users, and suggest features."
+  - name: "Community Support - Discord"
+    url: "https://discord.gg/DY8gxpSgep"
+    about: "Join discussions, meet other users, and get updates from the Firezone team."
+  - name: "Report a security vulnerability"
+    url: "https://github.com/firezone/firezone-sdk-go/security/advisories/new"
+    about: "Please report vulnerabilities privately, not as a public issue."

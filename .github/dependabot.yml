@@ -1,0 +1,25 @@
+---
+# Actions are SHA-pinned, so without an updater they stay pinned to
+# whatever was current the day they were added. This is what keeps the
+# pins honest.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "ci"
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: gomod
+    directory: "/"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "deps"
+    groups:
+      gomod:
+        patterns: ["*"]

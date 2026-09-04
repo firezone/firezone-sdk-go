@@ -1,0 +1,13 @@
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - revive
+  settings:
+    revive:
+      rules:
+        # Every exported identifier needs a doc comment - this package is
+        # meant to be read via `go doc`.
+        - name: exported
+          severity: error

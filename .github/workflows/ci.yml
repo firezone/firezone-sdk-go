@@ -1,0 +1,121 @@
+---
+name: Continuous Integration
+run-name: Triggered by ${{ github.actor }} on ${{ github.event_name }}
+on:
+  pull_request:
+  merge_group:
+    types: [checks_requested]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Cancel superseded runs on the same ref, except on main where every
+# commit's result is worth keeping.
+concurrency:
+  group: "ci-${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check (current toolchain)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Tool versions come from .tool-versions, so CI and local runs
+      # can't drift apart.
+      - name: Install tools from .tool-versions
+        uses: jdx/mise-action@3c2e0cf82a5b2e5249f0d3635a4d83d0ae861518 # v4.2.5
+        with:
+          version: "2026.7.7"
+          reshim: true
+          cache_key_prefix: "mise-v1"
+
+      # Keyed on the toolchain files, not just go.sum: this cache holds
+      # compiled stdlib and GOTOOLCHAIN-downloaded toolchains, so a Go
+      # version bump invalidates all of it while go.mod never moves.
+      # go.sum is listed for the day dependencies exist - hashFiles
+      # ignores paths that don't match, so its absence is harmless.
+      - name: Restore Go build and module cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: >-
+            go-${{ runner.os }}-${{ hashFiles('.tool-versions', 'mise.toml',
+            'go.mod', 'go.sum') }}
+          restore-keys: go-${{ runner.os }}-
+
+      # Mirrors `mise run check` - the composite task developers run
+      # locally. Kept as separate steps so a failure names itself in the
+      # job summary instead of hiding behind "check failed".
+      - name: Check formatting (gofmt -l -s)
+        run: mise run fmt-check
+
+      - name: Vet (including -tags=integration)
+        run: mise run vet
+
+      - name: Lint (golangci-lint)
+        run: mise run lint
+
+      - name: Unit tests (-race)
+        run: mise run test
+
+      # The only check that can catch a struct tag the server doesn't
+      # actually send. It runs against the spec vendored in testdata/,
+      # so it needs no monorepo checkout for now. In the future the
+      # spec will be retrieved from a live source.
+      - name: Check struct tags against the OpenAPI spec
+        run: mise run spec-check
+
+      - name: Scan for known vulnerabilities (govulncheck)
+        run: mise run vuln
+
+      - name: Build
+        run: mise run build
+
+  # The `check` job builds on the current toolchain. This one proves the
+  # go.mod floor is still real - without it, "we support Go 1.22" is a
+  # claim nothing tests, and the first newer-stdlib call silently breaks
+  # every consumer pinned to an older toolchain.
+  floor:
+    name: Check (oldest supported Go)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install tools from .tool-versions
+        uses: jdx/mise-action@3c2e0cf82a5b2e5249f0d3635a4d83d0ae861518 # v4.2.5
+        with:
+          version: "2026.7.7"
+          reshim: true
+          cache_key_prefix: "mise-v1"
+
+      # Same inputs as the check job. mise.toml matters most here
+      - name: Restore Go build and module cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: >-
+            go-floor-${{ runner.os }}-${{ hashFiles('.tool-versions',
+            'mise.toml', 'go.mod', 'go.sum') }}
+          restore-keys: go-floor-${{ runner.os }}-
+
+      # GOTOOLCHAIN makes the modern toolchain fetch and hand off to the
+      # floor release, so this needs no second Go install.
+      - name: Build and test on the go.mod floor
+        run: mise run test-floor
