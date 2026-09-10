@@ -21,6 +21,9 @@ they will require a new major version.
 - `CreatePolicyRequest.IsDisabled`, so a Policy can be created disabled
   rather than created and then disabled in a second call. Omitting it
   creates the Policy enabled, which is the API's default.
+- `ConditionPropertyDeviceAttested`, the `device_attested` Policy
+  condition property, which matches when the Client presented a valid
+  X.509 certificate from one of the account's trust anchors.
 
 ## [0.1.0] - 2026-09-04
 
