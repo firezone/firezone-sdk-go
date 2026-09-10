@@ -751,6 +751,48 @@ func TestIntegration_PolicyCRUD(t *testing.T) {
 	}
 }
 
+// TestIntegration_PolicyCreateDisabled checks the create-time
+// is_disabled flag against the real API. A unit test can only prove the
+// key is sent; the server's changeset silently drops a key it does not
+// cast, so only a real create proves the Policy comes back disabled.
+func TestIntegration_PolicyCreateDisabled(t *testing.T) {
+	c := integrationClient(t)
+	site := newSite(t, c)
+	group := newGroup(t, c)
+	resource := newResource(t, c, site.ID)
+
+	disabled := true
+	policy, err := c.Policies.Create(ctx(), &firezone.CreatePolicyRequest{
+		GroupID:    group.ID,
+		ResourceID: resource.ID,
+		IsDisabled: &disabled,
+	})
+	if err != nil {
+		t.Fatalf("Create disabled: %v", err)
+	}
+	cleanup(t, "Policy "+policy.ID, func() error { return c.Policies.Delete(ctx(), policy.ID) })
+
+	if !policy.IsDisabled {
+		t.Error("IsDisabled = false on the created Policy, want true")
+	}
+
+	fetched, err := c.Policies.Get(ctx(), policy.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if !fetched.IsDisabled {
+		t.Error("IsDisabled = false after Get, want the Policy to stay disabled")
+	}
+
+	enabled, err := c.Policies.Enable(ctx(), policy.ID)
+	if err != nil {
+		t.Fatalf("Enable: %v", err)
+	}
+	if enabled.IsDisabled {
+		t.Error("IsDisabled = true after Enable")
+	}
+}
+
 func TestIntegration_GroupCRUD(t *testing.T) {
 	c := integrationClient(t)
 

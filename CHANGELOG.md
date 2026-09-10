@@ -16,6 +16,12 @@ they will require a new major version.
 
 ## [Unreleased]
 
+### Added
+
+- `CreatePolicyRequest.IsDisabled`, so a Policy can be created disabled
+  rather than created and then disabled in a second call. Omitting it
+  creates the Policy enabled, which is the API's default.
+
 ## [0.1.0] - 2026-09-04
 
 First public release. The API is complete and verified against a live

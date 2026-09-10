@@ -84,6 +84,7 @@ type CreatePolicyRequest struct {
 	ResourceID            string      `json:"resource_id"`
 	Description           string      `json:"description,omitempty"`
 	FlowLogUploadsEnabled *bool       `json:"flow_log_uploads_enabled,omitempty"`
+	IsDisabled            *bool       `json:"is_disabled,omitempty"`
 	Conditions            []Condition `json:"conditions,omitempty"`
 }
 
