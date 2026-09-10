@@ -16,6 +16,8 @@ they will require a new major version.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-09-10
+
 ### Added
 
 - `CreatePolicyRequest.IsDisabled`, so a Policy can be created disabled
@@ -83,5 +85,6 @@ is no code difference to migrate: change the import path to
   process-global, so sharing it would mean SDK transport changes leaking
   into the rest of the binary and vice versa.
 
-[Unreleased]: https://github.com/firezone/firezone-sdk-go/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/firezone/firezone-sdk-go/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/firezone/firezone-sdk-go/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/firezone/firezone-sdk-go/releases/tag/v0.1.0
