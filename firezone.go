@@ -56,7 +56,7 @@ func (b requestBody) reader() io.Reader {
 // It is a constant rather than something read from build info, because
 // build info reports "(devel)" whenever the module is built rather than
 // consumed. Bump it as part of cutting a release - see CONTRIBUTING.md.
-const Version = "0.1.0"
+const Version = "0.1.1"
 
 // defaultUserAgent identifies this SDK and its version, plus the Go
 // runtime it was built with - the latter is worth having when a

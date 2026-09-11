@@ -16,6 +16,17 @@ they will require a new major version.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-09-10
+
+### Added
+
+- `CreatePolicyRequest.IsDisabled`, so a Policy can be created disabled
+  rather than created and then disabled in a second call. Omitting it
+  creates the Policy enabled, which is the API's default.
+- `ConditionPropertyDeviceAttested`, the `device_attested` Policy
+  condition property, which matches when the Client presented a valid
+  X.509 certificate from one of the account's trust anchors.
+
 ## [0.1.0] - 2026-09-04
 
 First public release. The API is complete and verified against a live
@@ -74,5 +85,6 @@ is no code difference to migrate: change the import path to
   process-global, so sharing it would mean SDK transport changes leaking
   into the rest of the binary and vice versa.
 
-[Unreleased]: https://github.com/firezone/firezone-sdk-go/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/firezone/firezone-sdk-go/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/firezone/firezone-sdk-go/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/firezone/firezone-sdk-go/releases/tag/v0.1.0

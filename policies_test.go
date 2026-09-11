@@ -51,6 +51,120 @@ func TestPoliciesService_Create(t *testing.T) {
 	}
 }
 
+func TestPoliciesService_Create_DeviceAttestedCondition(t *testing.T) {
+	var gotBody map[string]any
+	client := testutil.NewClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		decodeJSONBody(t, r, &gotBody)
+		testutil.JSONResponse(http.StatusCreated, map[string]any{
+			"data": map[string]any{
+				"id": "pol-1", "group_id": "group-1", "resource_id": "res-1",
+				"flow_log_uploads_enabled": true,
+				"conditions": []map[string]any{
+					{"property": "device_attested", "operator": "is", "values": []string{"true"}},
+				},
+			},
+		})(w, r)
+	}))
+
+	policy, err := client.Policies.Create(context.Background(), &firezone.CreatePolicyRequest{
+		GroupID:    "group-1",
+		ResourceID: "res-1",
+		Conditions: []firezone.Condition{{
+			Property: firezone.ConditionPropertyDeviceAttested,
+			Operator: firezone.ConditionOperatorIs,
+			Values:   []string{"true"},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("Create returned error: %v", err)
+	}
+
+	reqPolicy, ok := gotBody["policy"].(map[string]any)
+	if !ok {
+		t.Fatalf("body[\"policy\"] = %v, want an object", gotBody["policy"])
+	}
+	conds, ok := reqPolicy["conditions"].([]any)
+	if !ok || len(conds) != 1 {
+		t.Fatalf("body policy.conditions = %v, want 1 condition", reqPolicy["conditions"])
+	}
+	cond, ok := conds[0].(map[string]any)
+	if !ok {
+		t.Fatalf("condition = %v, want an object", conds[0])
+	}
+	if cond["property"] != "device_attested" {
+		t.Errorf("condition.property = %v, want device_attested", cond["property"])
+	}
+
+	if len(policy.Conditions) != 1 || policy.Conditions[0].Property != firezone.ConditionPropertyDeviceAttested {
+		t.Errorf("policy.Conditions = %+v, want a single device_attested condition", policy.Conditions)
+	}
+}
+
+func TestPoliciesService_Create_Disabled(t *testing.T) {
+	var gotBody map[string]any
+	client := testutil.NewClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		decodeJSONBody(t, r, &gotBody)
+		testutil.JSONResponse(http.StatusCreated, map[string]any{
+			"data": map[string]any{
+				"id": "pol-1", "group_id": "group-1", "resource_id": "res-1",
+				"flow_log_uploads_enabled": true, "is_disabled": true,
+			},
+		})(w, r)
+	}))
+
+	disabled := true
+	policy, err := client.Policies.Create(context.Background(), &firezone.CreatePolicyRequest{
+		GroupID:    "group-1",
+		ResourceID: "res-1",
+		IsDisabled: &disabled,
+	})
+	if err != nil {
+		t.Fatalf("Create returned error: %v", err)
+	}
+
+	reqPolicy, ok := gotBody["policy"].(map[string]any)
+	if !ok {
+		t.Fatalf("body[\"policy\"] = %v, want an object", gotBody["policy"])
+	}
+	if reqPolicy["is_disabled"] != true {
+		t.Errorf("body.policy.is_disabled = %v, want true", reqPolicy["is_disabled"])
+	}
+	if !policy.IsDisabled {
+		t.Error("policy.IsDisabled = false, want true")
+	}
+}
+
+// Omitting IsDisabled must send no key at all: the server defaults the
+// field to false, and a false sent explicitly would be indistinguishable
+// here but is not what "leave it to the API" means.
+func TestPoliciesService_Create_OmitsIsDisabledByDefault(t *testing.T) {
+	var gotBody map[string]any
+	client := testutil.NewClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		decodeJSONBody(t, r, &gotBody)
+		testutil.JSONResponse(http.StatusCreated, map[string]any{
+			"data": map[string]any{
+				"id": "pol-1", "group_id": "group-1", "resource_id": "res-1",
+				"flow_log_uploads_enabled": true, "is_disabled": false,
+			},
+		})(w, r)
+	}))
+
+	if _, err := client.Policies.Create(context.Background(), &firezone.CreatePolicyRequest{
+		GroupID:    "group-1",
+		ResourceID: "res-1",
+	}); err != nil {
+		t.Fatalf("Create returned error: %v", err)
+	}
+
+	reqPolicy, ok := gotBody["policy"].(map[string]any)
+	if !ok {
+		t.Fatalf("body[\"policy\"] = %v, want an object", gotBody["policy"])
+	}
+	if _, present := reqPolicy["is_disabled"]; present {
+		t.Errorf("body.policy.is_disabled = %v, want the key omitted", reqPolicy["is_disabled"])
+	}
+}
+
 func TestPoliciesService_Create_TimeRangeCondition(t *testing.T) {
 	var gotBody map[string]any
 	client := testutil.NewClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -13,6 +13,7 @@ const (
 	ConditionPropertyAuthProviderID         ConditionProperty = "auth_provider_id"
 	ConditionPropertyCurrentUTCDatetime     ConditionProperty = "current_utc_datetime"
 	ConditionPropertyClientVerified         ConditionProperty = "client_verified"
+	ConditionPropertyDeviceAttested         ConditionProperty = "device_attested"
 )
 
 // ConditionOperator is the comparison a policy [Condition] applies
@@ -60,6 +61,10 @@ const (
 //     [ConditionOperatorIsInDayOfWeekTimeRanges].
 //   - [ConditionPropertyClientVerified] with is: Values is a
 //     single-element list holding "true" or "false".
+//   - [ConditionPropertyDeviceAttested] with is: Values is a
+//     single-element list holding "true" or "false". "true" requires
+//     the Client to have presented a valid X.509 certificate from one
+//     of the account's trust anchors on its current connection.
 type Condition struct {
 	Property ConditionProperty `json:"property"`
 	Operator ConditionOperator `json:"operator"`
@@ -84,6 +89,7 @@ type CreatePolicyRequest struct {
 	ResourceID            string      `json:"resource_id"`
 	Description           string      `json:"description,omitempty"`
 	FlowLogUploadsEnabled *bool       `json:"flow_log_uploads_enabled,omitempty"`
+	IsDisabled            *bool       `json:"is_disabled,omitempty"`
 	Conditions            []Condition `json:"conditions,omitempty"`
 }
 
