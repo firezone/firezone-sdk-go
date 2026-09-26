@@ -946,43 +946,45 @@ func TestIntegration_Memberships(t *testing.T) {
 	}
 }
 
-// TestIntegration_PoolMembers needs a static_device_pool Resource, which
-// the API refuses to create - pools are made in the admin portal. The
-// test discovers one and skips when the account has none.
+// TestIntegration_PoolMembers owns its pool, so membership operations do not
+// alter an existing pool in the test account.
 func TestIntegration_PoolMembers(t *testing.T) {
 	c := integrationClient(t)
-
-	pools, err := c.Resources.List(ctx(), &firezone.ResourceListOptions{
-		Type: firezone.ResourceTypeStaticDevicePool,
+	pool, err := c.Resources.Create(ctx(), &firezone.CreateResourceRequest{
+		Name: "sdk-integration-pool", Type: firezone.ResourceTypeDevicePool,
+		DeviceMembershipCriteria: []byte(`{"device":{"field":"id","op":"in","value":[]}}`),
 	})
 	if err != nil {
-		t.Fatalf("listing static device pools: %v", err)
+		t.Fatal(err)
 	}
-	if len(pools.Data) == 0 {
-		t.Skip("no static_device_pool Resource in this account; create one in the admin portal to cover this")
-	}
-
-	pool := pools.Data[0]
-	page, err := c.Resources.PoolMembers(pool.ID).List(ctx(), nil)
+	t.Cleanup(func() {
+		if err := c.Resources.Delete(ctx(), pool.ID); err != nil {
+			t.Error(err)
+		}
+	})
+	members := c.Resources.PoolMembers(pool.ID)
+	page, err := members.List(ctx(), nil)
 	if err != nil {
-		t.Fatalf("PoolMembers.List for pool %s: %v", pool.ID, err)
+		t.Fatal(err)
 	}
-	t.Logf("pool %s has %d member(s) of %d total", pool.ID, len(page.Data), page.Metadata.Count)
-
-	// A pool with members is the only chance to check that PoolMember
-	// decodes; the spec marks id and name required and non-nullable.
-	for i := range page.Data {
-		member := page.Data[i]
-		nonEmpty(t, "PoolMember.ID", member.ID)
-		nonEmpty(t, "PoolMember.Name", member.Name)
-		// LastSeenAt is nullable - a pooled device that has never
-		// connected has none.
-		t.Logf("member %s (%s) last seen %v", member.ID, member.Name, member.LastSeenAt)
+	if len(page.Data) != 0 {
+		t.Fatalf("new pool has members: %+v", page.Data)
 	}
-
-	// Membership is not modified here: the members are real enrolled
-	// devices belonging to whoever owns this account, and ReplaceAll
-	// would evict them. Deepen this only against a throwaway account.
+	if _, err := members.ReplaceAll(ctx(), []string{}); err != nil {
+		t.Fatal(err)
+	}
+	updated, err := c.Resources.Update(ctx(), pool.ID, &firezone.UpdateResourceRequest{
+		DeviceMembershipCriteria: []byte(`{"device":{"field":"actor_id","op":"eq","value":{"subject":"actor_id"}}}`),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(updated.DeviceMembershipCriteria) == 0 {
+		t.Fatal("missing criteria in update response")
+	}
+	if _, err := members.List(ctx(), nil); err == nil {
+		t.Fatal("dynamic pool unexpectedly supports pool_members")
+	}
 }
 
 // TestIntegration_ClientDevices is read-only: Client devices enroll

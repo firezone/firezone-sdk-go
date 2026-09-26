@@ -1,6 +1,9 @@
 package firezone
 
-import "context"
+import (
+	"context"
+	"encoding/json"
+)
 
 // ResourceType is the type of network object a Resource represents.
 type ResourceType string
@@ -13,16 +16,12 @@ const (
 	ResourceTypeIP   ResourceType = "ip"
 	ResourceTypeDNS  ResourceType = "dns"
 
-	// ResourceTypeStaticDevicePool is currently readable but not
-	// creatable: the API rejects any request that changes a Resource's
-	// type to it, on both create and update, with a 422. Create device
-	// pools in the admin portal instead.
-	//
-	// The constant stays because existing pools are still returned by
-	// Get and List, still filterable via [ResourceListOptions.Type], and
-	// still updatable and deletable - only the transition into this type
-	// is refused. Note that restating an existing pool's own type on an
-	// update is not a transition and is accepted.
+	// ResourceTypeDevicePool selects Clients using DeviceMembershipCriteria.
+	ResourceTypeDevicePool ResourceType = "device_pool"
+
+	// ResourceTypeStaticDevicePool is the legacy type used before device pools
+	// gained membership criteria.
+	// Deprecated: use ResourceTypeDevicePool with DeviceMembershipCriteria.
 	ResourceTypeStaticDevicePool ResourceType = "static_device_pool"
 )
 
@@ -55,27 +54,34 @@ type Filter struct {
 }
 
 // Resource is a Firezone Resource - a network object (CIDR, IP, DNS
-// name, or static device pool) that Policies grant access to.
+// name, or device pool) that Policies grant access to.
 type Resource struct {
-	ID                 string       `json:"id"`
-	Name               string       `json:"name"`
-	Address            string       `json:"address"`
-	AddressDescription string       `json:"address_description"`
-	Type               ResourceType `json:"type"`
-	IPStack            IPStack      `json:"ip_stack,omitempty"`
-	SiteID             string       `json:"site_id,omitempty"`
-	Filters            []Filter     `json:"filters"`
+	// DeviceMembershipCriteria is the API's criteria object for a device pool.
+	// It is absent or null for other Resource types.
+	DeviceMembershipCriteria json.RawMessage `json:"device_membership_criteria,omitempty"`
+	ID                       string          `json:"id"`
+	Name                     string          `json:"name"`
+	Address                  string          `json:"address"`
+	AddressDescription       string          `json:"address_description"`
+	Type                     ResourceType    `json:"type"`
+	IPStack                  IPStack         `json:"ip_stack,omitempty"`
+	SiteID                   string          `json:"site_id,omitempty"`
+	Filters                  []Filter        `json:"filters"`
 }
 
 // CreateResourceRequest is the request body for [ResourcesService.Create].
 type CreateResourceRequest struct {
-	Name               string       `json:"name"`
-	Type               ResourceType `json:"type"`
-	Address            string       `json:"address,omitempty"`
-	AddressDescription string       `json:"address_description,omitempty"`
-	IPStack            IPStack      `json:"ip_stack,omitempty"`
-	SiteID             string       `json:"site_id,omitempty"`
-	Filters            []Filter     `json:"filters,omitempty"`
+	// DeviceMembershipCriteria is required for device_pool Resources. Accepted
+	// rules select listed Client IDs, the subject's own devices, all account
+	// devices, or an actor group's devices. See the API's Resource schema.
+	DeviceMembershipCriteria json.RawMessage `json:"device_membership_criteria,omitempty"`
+	Name                     string          `json:"name"`
+	Type                     ResourceType    `json:"type"`
+	Address                  string          `json:"address,omitempty"`
+	AddressDescription       string          `json:"address_description,omitempty"`
+	IPStack                  IPStack         `json:"ip_stack,omitempty"`
+	SiteID                   string          `json:"site_id,omitempty"`
+	Filters                  []Filter        `json:"filters,omitempty"`
 }
 
 // UpdateResourceRequest is the request body for [ResourcesService.Update].
@@ -86,9 +92,12 @@ type CreateResourceRequest struct {
 // slice for the same reason: a nil pointer leaves the Resource's filters
 // alone, while a pointer to an empty slice removes all of them.
 type UpdateResourceRequest struct {
-	Name    string        `json:"name,omitempty"`
-	Type    ResourceType  `json:"type,omitempty"`
-	Address *Null[string] `json:"address,omitempty"`
+	// DeviceMembershipCriteria replaces the whole criteria object. nil omits
+	// the field, preserving existing criteria (including pool member edits).
+	DeviceMembershipCriteria json.RawMessage `json:"device_membership_criteria,omitempty"`
+	Name                     string          `json:"name,omitempty"`
+	Type                     ResourceType    `json:"type,omitempty"`
+	Address                  *Null[string]   `json:"address,omitempty"`
 	// AddressDescription is free-form text describing the address.
 	// Clear[string]() removes it. Set("") removes it too - the API
 	// replaces an empty string with the field's default rather than
@@ -104,16 +113,14 @@ type UpdateResourceRequest struct {
 	Filters *[]Filter `json:"filters,omitempty"`
 }
 
-// ResourcesService manages Resources, and, nested under them, static
+// ResourcesService manages Resources, and, nested under them, listed
 // device pool membership.
 type ResourcesService struct {
 	client *Client
 }
 
-// PoolMembers returns a [PoolMembersService] scoped to the
-// static_device_pool Resource identified by resourceID. Calling it for
-// any other Resource type is allowed, but every request that service
-// makes will fail with 400.
+// PoolMembers returns a service for a device_pool Resource with listed-device
+// criteria. Dynamic criteria do not support the pool_members endpoints.
 func (s *ResourcesService) PoolMembers(resourceID string) *PoolMembersService {
 	return &PoolMembersService{client: s.client, resourceID: resourceID}
 }
@@ -162,11 +169,7 @@ func (s *ResourcesService) List(ctx context.Context, opts *ResourceListOptions) 
 	return doList[Resource](ctx, s.client, "GET", "resources", q)
 }
 
-// Create creates a new Resource.
-//
-// Two types cannot be created: "internet" (403 Forbidden) and
-// [ResourceTypeStaticDevicePool] (422) - create device pools in the
-// admin portal instead.
+// Create creates a new Resource. Device pools require membership criteria.
 func (s *ResourcesService) Create(ctx context.Context, req *CreateResourceRequest) (*Resource, error) {
 	body, err := wrapBody("resource", req)
 	if err != nil {
@@ -179,12 +182,7 @@ func (s *ResourcesService) Create(ctx context.Context, req *CreateResourceReques
 	return &resource, nil
 }
 
-// Update updates a Resource.
-//
-// Changing a Resource's type to [ResourceTypeStaticDevicePool] is
-// refused with a 422, the same as creating one. Restating an existing
-// pool's own type is not a change and is accepted, so a caller that
-// echoes the whole Resource back on update still works.
+// Update updates a Resource, including its type and membership criteria.
 func (s *ResourcesService) Update(ctx context.Context, id string, req *UpdateResourceRequest) (*Resource, error) {
 	if err := checkID("Resource ID", id); err != nil {
 		return nil, err

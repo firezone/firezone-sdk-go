@@ -262,7 +262,7 @@ store. The seed script creates a fresh throwaway account and an
 line; the token is valid for a day.
 
 Because the account is fresh, the tests covering objects the API cannot
-create — Client devices and static device pools — will skip, and the
+create — Client devices — will skip, and the
 auth provider and directory tests will report zero records. That is
 expected. See the
 [`terraform-provider-firezone`](https://github.com/firezone/terraform-provider-firezone)
@@ -277,3 +277,24 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). To report a security issue, see
 
 Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) and
 [NOTICE](NOTICE) for details.
+
+
+## Device pools
+
+Create pools with `ResourceTypeDevicePool` and `DeviceMembershipCriteria`.
+The criteria use the API's JSON shape, carried as `json.RawMessage`:
+
+```go
+pool, err := client.Resources.Create(ctx, &firezone.CreateResourceRequest{
+    Name: "My Devices",
+    Type: firezone.ResourceTypeDevicePool,
+    DeviceMembershipCriteria: json.RawMessage(`{"device":{"field":"actor_id","op":"eq","value":{"subject":"actor_id"}}}`),
+})
+```
+
+Other rules select all account devices (`account_id` compared to the subject's
+`account_id`), listed devices (`device` / `id` / `in` / an array of Client UUIDs),
+or an actor group's devices (`actor_group` / `id` / `eq` / a Group UUID).
+Device pools have no Site or address. Only listed criteria support `PoolMembers`.
+A nil criteria field on update preserves membership; a non-nil value replaces
+the whole rule. The legacy `ResourceTypeStaticDevicePool` constant is deprecated.

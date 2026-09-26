@@ -655,12 +655,12 @@
         "type": "object"
       },
       "ResourceCreateRequest": {
-        "description": "POST body for creating a Resource. `site_id` is required.\n\nDevice pools (`static_device_pool`) cannot currently be created through this API - create them in the admin portal. Existing pools can be read, updated, deleted, and have their members managed here as normal.",
+        "description": "POST body for creating a Resource. `site_id` is required for every type except `device_pool`, which needs `device_membership_criteria` instead.",
         "properties": {
           "resource": {
             "properties": {
               "address": {
-                "description": "Resource address.",
+                "description": "Resource address. Required for `cidr`, `ip` and `dns`. `device_pool` and `internet` Resources ignore it.",
                 "example": "10.0.0.10",
                 "nullable": true,
                 "type": "string"
@@ -670,6 +670,9 @@
                 "example": "Production Database",
                 "nullable": true,
                 "type": "string"
+              },
+              "device_membership_criteria": {
+                "$ref": "#/components/schemas/DeviceMembershipCriteria"
               },
               "filters": {
                 "description": "Traffic filters restricting the protocols and ports the Resource exposes",
@@ -702,7 +705,7 @@
                 "type": "string"
               },
               "site_id": {
-                "description": "Site to connect the Resource to. Required. The Internet Site is reserved for the Internet Resource and cannot be used.",
+                "description": "Site to connect the Resource to. Required for all types except `device_pool`, which takes none. The Internet Site is reserved for the Internet Resource and cannot be used.",
                 "example": "0642e09d-b3a2-47e4-9cd1-c2195faeeb67",
                 "format": "uuid",
                 "nullable": true,
@@ -710,12 +713,13 @@
                 "type": "string"
               },
               "type": {
-                "description": "Resource type. `internet` is accepted only in the Internet Site.",
+                "description": "Resource type. `internet` is accepted only in the Internet Site. `device_pool` takes no `site_id` and no `address`.",
                 "enum": [
                   "cidr",
                   "ip",
                   "dns",
-                  "internet"
+                  "internet",
+                  "device_pool"
                 ],
                 "example": "ip",
                 "type": "string"
@@ -4228,7 +4232,7 @@
         "description": "Resource",
         "properties": {
           "address": {
-            "description": "Resource address. Null for `static_device_pool` Resources.",
+            "description": "Resource address. Null for `device_pool` Resources.",
             "example": "10.0.0.10",
             "nullable": true,
             "type": "string"
@@ -4238,6 +4242,9 @@
             "example": "Production Database",
             "nullable": true,
             "type": "string"
+          },
+          "device_membership_criteria": {
+            "$ref": "#/components/schemas/DeviceMembershipCriteria"
           },
           "filters": {
             "description": "Traffic filters restricting the protocols and ports the Resource exposes",
@@ -4275,21 +4282,20 @@
             "type": "string"
           },
           "site_id": {
-            "description": "Site to connect the Resource to. Required for all types except `static_device_pool`.",
+            "description": "Site to connect the Resource to. Required for all types except device pools.",
             "example": "0642e09d-b3a2-47e4-9cd1-c2195faeeb67",
             "format": "uuid",
             "title": "SiteID",
             "type": "string"
           },
           "type": {
-            "description": "Resource type. For `static_device_pool` and `dynamic_device_pool`, `address` is not applicable. Only `cidr`, `ip`, and `dns` Resources can be created through the API.",
+            "description": "Resource type. A `device_pool` has no `address` and no `site_id`; who it holds is `device_membership_criteria`.",
             "enum": [
               "cidr",
               "ip",
               "dns",
               "internet",
-              "static_device_pool",
-              "dynamic_device_pool"
+              "device_pool"
             ],
             "example": "ip",
             "type": "string"
@@ -5052,6 +5058,7 @@
         "type": "object"
       },
       "PoolMemberPutRequest": {
+        "deprecated": true,
         "description": "PUT body replacing the pool's entire membership. Any Client not named\nhere is removed from the pool.\n",
         "properties": {
           "pool_members": {
@@ -5240,7 +5247,7 @@
           "resource": {
             "properties": {
               "address": {
-                "description": "Resource address.",
+                "description": "Resource address. Required for `cidr`, `ip` and `dns`. `device_pool` and `internet` Resources ignore it.",
                 "example": "10.0.0.10",
                 "nullable": true,
                 "type": "string"
@@ -5250,6 +5257,9 @@
                 "example": "Production Database",
                 "nullable": true,
                 "type": "string"
+              },
+              "device_membership_criteria": {
+                "$ref": "#/components/schemas/DeviceMembershipCriteria"
               },
               "filters": {
                 "description": "Traffic filters restricting the protocols and ports the Resource exposes",
@@ -5282,7 +5292,7 @@
                 "type": "string"
               },
               "site_id": {
-                "description": "Site to connect the Resource to. Required. The Internet Site is reserved for the Internet Resource and cannot be used.",
+                "description": "Site to connect the Resource to. Required for all types except `device_pool`, which takes none. The Internet Site is reserved for the Internet Resource and cannot be used.",
                 "example": "0642e09d-b3a2-47e4-9cd1-c2195faeeb67",
                 "format": "uuid",
                 "nullable": true,
@@ -5290,13 +5300,13 @@
                 "type": "string"
               },
               "type": {
-                "description": "Resource type. `internet` is accepted only in the Internet Site. `static_device_pool` is accepted only on a Resource that already is one.",
+                "description": "Resource type. `internet` is accepted only in the Internet Site. `device_pool` takes no `site_id` and no `address`.",
                 "enum": [
                   "cidr",
                   "ip",
                   "dns",
                   "internet",
-                  "static_device_pool"
+                  "device_pool"
                 ],
                 "example": "ip",
                 "type": "string"
@@ -5473,7 +5483,8 @@
         "type": "object"
       },
       "PoolMember": {
-        "description": "A Client belonging to a static device pool Resource",
+        "deprecated": true,
+        "description": "A Client a device pool Resource names as a member",
         "properties": {
           "id": {
             "description": "Client ID",
@@ -6150,6 +6161,7 @@
         "type": "object"
       },
       "PoolMemberPatchRequest": {
+        "deprecated": true,
         "description": "PATCH body for adding and removing individual pool members. Both\noperations are idempotent, and `remove` is applied before `add`, so a\nClient named in both ends up in the pool.\n",
         "properties": {
           "pool_members": {
@@ -7143,6 +7155,450 @@
           }
         },
         "title": "OIDCAuthProviderResponse",
+        "type": "object"
+      },
+      "DeviceMembershipAllDevices": {
+        "additionalProperties": false,
+        "description": "Every Client in the Account",
+        "example": {
+          "device": {
+            "field": "account_id",
+            "op": "eq",
+            "value": {
+              "subject": "account_id"
+            }
+          }
+        },
+        "properties": {
+          "device": {
+            "additionalProperties": false,
+            "properties": {
+              "field": {
+                "enum": [
+                  "account_id"
+                ],
+                "type": "string"
+              },
+              "op": {
+                "enum": [
+                  "eq"
+                ],
+                "type": "string"
+              },
+              "value": {
+                "additionalProperties": false,
+                "properties": {
+                  "subject": {
+                    "enum": [
+                      "account_id"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "subject"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "field",
+              "op",
+              "value"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "device"
+        ],
+        "title": "DeviceMembershipAllDevices",
+        "type": "object"
+      },
+      "DeviceMembershipActorGroup": {
+        "additionalProperties": false,
+        "description": "The Clients of every Actor in one Group",
+        "example": {
+          "actor_group": {
+            "field": "id",
+            "op": "eq",
+            "value": "b3a1c6e2-5f4d-4e7a-9c8b-1d2e3f4a5b6c"
+          }
+        },
+        "properties": {
+          "actor_group": {
+            "additionalProperties": false,
+            "properties": {
+              "field": {
+                "enum": [
+                  "id"
+                ],
+                "type": "string"
+              },
+              "op": {
+                "enum": [
+                  "eq"
+                ],
+                "type": "string"
+              },
+              "value": {
+                "description": "Group ID",
+                "format": "uuid",
+                "type": "string"
+              }
+            },
+            "required": [
+              "field",
+              "op",
+              "value"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "actor_group"
+        ],
+        "title": "DeviceMembershipActorGroup",
+        "type": "object"
+      },
+      "DeviceMembershipListedDevices": {
+        "additionalProperties": false,
+        "description": "Exactly the Clients named",
+        "example": {
+          "device": {
+            "field": "id",
+            "op": "in",
+            "value": [
+              "7cb89288-1fb3-433e-a522-2d087e45988d",
+              "cc9f561a-444d-4083-ab38-0abc6cf2314c"
+            ]
+          }
+        },
+        "properties": {
+          "device": {
+            "additionalProperties": false,
+            "properties": {
+              "field": {
+                "enum": [
+                  "id"
+                ],
+                "type": "string"
+              },
+              "op": {
+                "enum": [
+                  "in"
+                ],
+                "type": "string"
+              },
+              "value": {
+                "description": "Client IDs",
+                "items": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "field",
+              "op",
+              "value"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "device"
+        ],
+        "title": "DeviceMembershipListedDevices",
+        "type": "object"
+      },
+      "DeviceMembershipOwnDevices": {
+        "additionalProperties": false,
+        "description": "The Clients of the Actor asking for access",
+        "example": {
+          "device": {
+            "field": "actor_id",
+            "op": "eq",
+            "value": {
+              "subject": "actor_id"
+            }
+          }
+        },
+        "properties": {
+          "device": {
+            "additionalProperties": false,
+            "properties": {
+              "field": {
+                "enum": [
+                  "actor_id"
+                ],
+                "type": "string"
+              },
+              "op": {
+                "enum": [
+                  "eq"
+                ],
+                "type": "string"
+              },
+              "value": {
+                "additionalProperties": false,
+                "properties": {
+                  "subject": {
+                    "enum": [
+                      "actor_id"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "subject"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "field",
+              "op",
+              "value"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "device"
+        ],
+        "title": "DeviceMembershipOwnDevices",
+        "type": "object"
+      },
+      "DeviceMembershipCriteria": {
+        "description": "Who a `device_pool` Resource holds. Required for a device pool, absent for every\nother Resource type.\n\nThe object has exactly one key, naming where the field lives: `device` is the\nClient row itself, and `actor_group` is a group the Client's owner belongs to.\nThe value is one rule comparing a field against either a literal or an attribute\nof the Actor asking for access. More sources can be added later without changing\nthe rules already stored.\n\nThe four rules the API accepts, and who each one holds:\n\n    {\"device\": {\"field\": \"id\", \"op\": \"in\", \"value\": [\"<client id>\", ...]}}\n    {\"device\": {\"field\": \"actor_id\", \"op\": \"eq\", \"value\": {\"subject\": \"actor_id\"}}}\n    {\"device\": {\"field\": \"account_id\", \"op\": \"eq\", \"value\": {\"subject\": \"account_id\"}}}\n    {\"actor_group\": {\"field\": \"id\", \"op\": \"eq\", \"value\": \"<group id>\"}}\n\nIn order: exactly the Clients named, the asking Actor's own Clients, every Client\nin the Account, and the Clients of every Actor in one Group.\n\nEditing the list of Clients the first rule names drops the connections to the\nClients removed and leaves every other connection through the pool alone.\n\nEvery other change to this field is a breaking update, because any Client can move\nin or out of the pool: every active connection through the pool is dropped, and\nClients reconnect to the members they may still reach.\n\nClients older than the device-pool protocol only understand a pool that names its\nmembers, so they are sent the first rule and never the other three.\n",
+        "example": {
+          "device": {
+            "field": "actor_id",
+            "op": "eq",
+            "value": {
+              "subject": "actor_id"
+            }
+          }
+        },
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "description": "Exactly the Clients named",
+            "example": {
+              "device": {
+                "field": "id",
+                "op": "in",
+                "value": [
+                  "7cb89288-1fb3-433e-a522-2d087e45988d",
+                  "cc9f561a-444d-4083-ab38-0abc6cf2314c"
+                ]
+              }
+            },
+            "properties": {
+              "device": {
+                "additionalProperties": false,
+                "properties": {
+                  "field": {
+                    "enum": [
+                      "id"
+                    ],
+                    "type": "string"
+                  },
+                  "op": {
+                    "enum": [
+                      "in"
+                    ],
+                    "type": "string"
+                  },
+                  "value": {
+                    "description": "Client IDs",
+                    "items": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "field",
+                  "op",
+                  "value"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "device"
+            ],
+            "title": "DeviceMembershipListedDevices",
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The Clients of the Actor asking for access",
+            "example": {
+              "device": {
+                "field": "actor_id",
+                "op": "eq",
+                "value": {
+                  "subject": "actor_id"
+                }
+              }
+            },
+            "properties": {
+              "device": {
+                "additionalProperties": false,
+                "properties": {
+                  "field": {
+                    "enum": [
+                      "actor_id"
+                    ],
+                    "type": "string"
+                  },
+                  "op": {
+                    "enum": [
+                      "eq"
+                    ],
+                    "type": "string"
+                  },
+                  "value": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "subject": {
+                        "enum": [
+                          "actor_id"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "subject"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "field",
+                  "op",
+                  "value"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "device"
+            ],
+            "title": "DeviceMembershipOwnDevices",
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Every Client in the Account",
+            "example": {
+              "device": {
+                "field": "account_id",
+                "op": "eq",
+                "value": {
+                  "subject": "account_id"
+                }
+              }
+            },
+            "properties": {
+              "device": {
+                "additionalProperties": false,
+                "properties": {
+                  "field": {
+                    "enum": [
+                      "account_id"
+                    ],
+                    "type": "string"
+                  },
+                  "op": {
+                    "enum": [
+                      "eq"
+                    ],
+                    "type": "string"
+                  },
+                  "value": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "subject": {
+                        "enum": [
+                          "account_id"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "subject"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "field",
+                  "op",
+                  "value"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "device"
+            ],
+            "title": "DeviceMembershipAllDevices",
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The Clients of every Actor in one Group",
+            "example": {
+              "actor_group": {
+                "field": "id",
+                "op": "eq",
+                "value": "b3a1c6e2-5f4d-4e7a-9c8b-1d2e3f4a5b6c"
+              }
+            },
+            "properties": {
+              "actor_group": {
+                "additionalProperties": false,
+                "properties": {
+                  "field": {
+                    "enum": [
+                      "id"
+                    ],
+                    "type": "string"
+                  },
+                  "op": {
+                    "enum": [
+                      "eq"
+                    ],
+                    "type": "string"
+                  },
+                  "value": {
+                    "description": "Group ID",
+                    "format": "uuid",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "field",
+                  "op",
+                  "value"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "actor_group"
+            ],
+            "title": "DeviceMembershipActorGroup",
+            "type": "object"
+          }
+        ],
+        "title": "DeviceMembershipCriteria",
         "type": "object"
       }
     },
@@ -12325,7 +12781,7 @@
             }
           },
           {
-            "description": "Filter to Resources of this type: cidr, ip, dns, or static_device_pool.",
+            "description": "Filter to Resources of this type: cidr, ip, dns, or device_pool.",
             "example": "dns",
             "in": "query",
             "name": "type",
@@ -12367,6 +12823,54 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "resources": {
+                    "summary": "An IP Resource and a device pool",
+                    "value": {
+                      "data": [
+                        {
+                          "address": "10.0.0.10",
+                          "address_description": "Production Database",
+                          "filters": [
+                            {
+                              "ports": [
+                                "5432"
+                              ],
+                              "protocol": "tcp"
+                            }
+                          ],
+                          "id": "42a7f82f-831a-4a9d-8f17-c66c2bb6e205",
+                          "name": "Prod DB",
+                          "site_id": "0642e09d-b3a2-47e4-9cd1-c2195faeeb67",
+                          "type": "ip"
+                        },
+                        {
+                          "address": null,
+                          "address_description": null,
+                          "device_membership_criteria": {
+                            "device": {
+                              "field": "actor_id",
+                              "op": "eq",
+                              "value": {
+                                "subject": "actor_id"
+                              }
+                            }
+                          },
+                          "filters": [],
+                          "id": "5f0d3c1a-8e2b-4b7d-9a6c-3e4f5a6b7c8d",
+                          "name": "My Devices",
+                          "type": "device_pool"
+                        }
+                      ],
+                      "metadata": {
+                        "count": 2,
+                        "limit": 10,
+                        "next_page": null,
+                        "prev_page": null
+                      }
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/ResourceListResponse"
                 }
@@ -12451,6 +12955,99 @@
         "requestBody": {
           "content": {
             "application/json": {
+              "examples": {
+                "actor_group": {
+                  "summary": "Device pool of the Clients of every Actor in one Group",
+                  "value": {
+                    "resource": {
+                      "device_membership_criteria": {
+                        "actor_group": {
+                          "field": "id",
+                          "op": "eq",
+                          "value": "b3a1c6e2-5f4d-4e7a-9c8b-1d2e3f4a5b6c"
+                        }
+                      },
+                      "name": "Engineering Devices",
+                      "type": "device_pool"
+                    }
+                  }
+                },
+                "all_devices": {
+                  "summary": "Device pool of every Client in the Account",
+                  "value": {
+                    "resource": {
+                      "device_membership_criteria": {
+                        "device": {
+                          "field": "account_id",
+                          "op": "eq",
+                          "value": {
+                            "subject": "account_id"
+                          }
+                        }
+                      },
+                      "name": "All Devices",
+                      "type": "device_pool"
+                    }
+                  }
+                },
+                "ip": {
+                  "summary": "IP Resource",
+                  "value": {
+                    "resource": {
+                      "address": "10.0.0.10",
+                      "address_description": "Production Database",
+                      "filters": [
+                        {
+                          "ports": [
+                            "5432"
+                          ],
+                          "protocol": "tcp"
+                        }
+                      ],
+                      "name": "Prod DB",
+                      "site_id": "0642e09d-b3a2-47e4-9cd1-c2195faeeb67",
+                      "type": "ip"
+                    }
+                  }
+                },
+                "listed_devices": {
+                  "summary": "Device pool of the Clients named",
+                  "value": {
+                    "resource": {
+                      "device_membership_criteria": {
+                        "device": {
+                          "field": "id",
+                          "op": "in",
+                          "value": [
+                            "7cb89288-1fb3-433e-a522-2d087e45988d",
+                            "cc9f561a-444d-4083-ab38-0abc6cf2314c"
+                          ]
+                        }
+                      },
+                      "name": "Build Machines",
+                      "type": "device_pool"
+                    }
+                  }
+                },
+                "own_devices": {
+                  "summary": "Device pool of the asking Actor's own Clients",
+                  "value": {
+                    "resource": {
+                      "device_membership_criteria": {
+                        "device": {
+                          "field": "actor_id",
+                          "op": "eq",
+                          "value": {
+                            "subject": "actor_id"
+                          }
+                        }
+                      },
+                      "name": "My Devices",
+                      "type": "device_pool"
+                    }
+                  }
+                }
+              },
               "schema": {
                 "$ref": "#/components/schemas/ResourceCreateRequest"
               }
@@ -12463,6 +13060,51 @@
           "201": {
             "content": {
               "application/json": {
+                "examples": {
+                  "device_pool": {
+                    "summary": "Device pool",
+                    "value": {
+                      "data": {
+                        "address": null,
+                        "address_description": null,
+                        "device_membership_criteria": {
+                          "device": {
+                            "field": "actor_id",
+                            "op": "eq",
+                            "value": {
+                              "subject": "actor_id"
+                            }
+                          }
+                        },
+                        "filters": [],
+                        "id": "5f0d3c1a-8e2b-4b7d-9a6c-3e4f5a6b7c8d",
+                        "name": "My Devices",
+                        "type": "device_pool"
+                      }
+                    }
+                  },
+                  "ip": {
+                    "summary": "IP Resource",
+                    "value": {
+                      "data": {
+                        "address": "10.0.0.10",
+                        "address_description": "Production Database",
+                        "filters": [
+                          {
+                            "ports": [
+                              "5432"
+                            ],
+                            "protocol": "tcp"
+                          }
+                        ],
+                        "id": "42a7f82f-831a-4a9d-8f17-c66c2bb6e205",
+                        "name": "Prod DB",
+                        "site_id": "0642e09d-b3a2-47e4-9cd1-c2195faeeb67",
+                        "type": "ip"
+                      }
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/ResourceResponse"
                 }
@@ -14606,6 +15248,51 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "device_pool": {
+                    "summary": "Device pool",
+                    "value": {
+                      "data": {
+                        "address": null,
+                        "address_description": null,
+                        "device_membership_criteria": {
+                          "device": {
+                            "field": "actor_id",
+                            "op": "eq",
+                            "value": {
+                              "subject": "actor_id"
+                            }
+                          }
+                        },
+                        "filters": [],
+                        "id": "5f0d3c1a-8e2b-4b7d-9a6c-3e4f5a6b7c8d",
+                        "name": "My Devices",
+                        "type": "device_pool"
+                      }
+                    }
+                  },
+                  "ip": {
+                    "summary": "IP Resource",
+                    "value": {
+                      "data": {
+                        "address": "10.0.0.10",
+                        "address_description": "Production Database",
+                        "filters": [
+                          {
+                            "ports": [
+                              "5432"
+                            ],
+                            "protocol": "tcp"
+                          }
+                        ],
+                        "id": "42a7f82f-831a-4a9d-8f17-c66c2bb6e205",
+                        "name": "Prod DB",
+                        "site_id": "0642e09d-b3a2-47e4-9cd1-c2195faeeb67",
+                        "type": "ip"
+                      }
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/ResourceResponse"
                 }
@@ -14718,6 +15405,51 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "device_pool": {
+                    "summary": "Device pool",
+                    "value": {
+                      "data": {
+                        "address": null,
+                        "address_description": null,
+                        "device_membership_criteria": {
+                          "device": {
+                            "field": "actor_id",
+                            "op": "eq",
+                            "value": {
+                              "subject": "actor_id"
+                            }
+                          }
+                        },
+                        "filters": [],
+                        "id": "5f0d3c1a-8e2b-4b7d-9a6c-3e4f5a6b7c8d",
+                        "name": "My Devices",
+                        "type": "device_pool"
+                      }
+                    }
+                  },
+                  "ip": {
+                    "summary": "IP Resource",
+                    "value": {
+                      "data": {
+                        "address": "10.0.0.10",
+                        "address_description": "Production Database",
+                        "filters": [
+                          {
+                            "ports": [
+                              "5432"
+                            ],
+                            "protocol": "tcp"
+                          }
+                        ],
+                        "id": "42a7f82f-831a-4a9d-8f17-c66c2bb6e205",
+                        "name": "Prod DB",
+                        "site_id": "0642e09d-b3a2-47e4-9cd1-c2195faeeb67",
+                        "type": "ip"
+                      }
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/ResourceResponse"
                 }
@@ -14829,6 +15561,48 @@
         "requestBody": {
           "content": {
             "application/json": {
+              "examples": {
+                "convert_to_device_pool": {
+                  "summary": "Convert a Resource to a device pool",
+                  "value": {
+                    "resource": {
+                      "device_membership_criteria": {
+                        "actor_group": {
+                          "field": "id",
+                          "op": "eq",
+                          "value": "b3a1c6e2-5f4d-4e7a-9c8b-1d2e3f4a5b6c"
+                        }
+                      },
+                      "type": "device_pool"
+                    }
+                  }
+                },
+                "rename": {
+                  "summary": "Rename a Resource",
+                  "value": {
+                    "resource": {
+                      "name": "Prod DB (primary)"
+                    }
+                  }
+                },
+                "set_pool_members": {
+                  "summary": "Replace the Clients a device pool names",
+                  "value": {
+                    "resource": {
+                      "device_membership_criteria": {
+                        "device": {
+                          "field": "id",
+                          "op": "in",
+                          "value": [
+                            "7cb89288-1fb3-433e-a522-2d087e45988d",
+                            "cc9f561a-444d-4083-ab38-0abc6cf2314c"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              },
               "schema": {
                 "$ref": "#/components/schemas/ResourceUpdateRequest"
               }
@@ -14841,6 +15615,51 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "device_pool": {
+                    "summary": "Device pool",
+                    "value": {
+                      "data": {
+                        "address": null,
+                        "address_description": null,
+                        "device_membership_criteria": {
+                          "device": {
+                            "field": "actor_id",
+                            "op": "eq",
+                            "value": {
+                              "subject": "actor_id"
+                            }
+                          }
+                        },
+                        "filters": [],
+                        "id": "5f0d3c1a-8e2b-4b7d-9a6c-3e4f5a6b7c8d",
+                        "name": "My Devices",
+                        "type": "device_pool"
+                      }
+                    }
+                  },
+                  "ip": {
+                    "summary": "IP Resource",
+                    "value": {
+                      "data": {
+                        "address": "10.0.0.10",
+                        "address_description": "Production Database",
+                        "filters": [
+                          {
+                            "ports": [
+                              "5432"
+                            ],
+                            "protocol": "tcp"
+                          }
+                        ],
+                        "id": "42a7f82f-831a-4a9d-8f17-c66c2bb6e205",
+                        "name": "Prod DB",
+                        "site_id": "0642e09d-b3a2-47e4-9cd1-c2195faeeb67",
+                        "type": "ip"
+                      }
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/ResourceResponse"
                 }
@@ -14973,6 +15792,48 @@
         "requestBody": {
           "content": {
             "application/json": {
+              "examples": {
+                "convert_to_device_pool": {
+                  "summary": "Convert a Resource to a device pool",
+                  "value": {
+                    "resource": {
+                      "device_membership_criteria": {
+                        "actor_group": {
+                          "field": "id",
+                          "op": "eq",
+                          "value": "b3a1c6e2-5f4d-4e7a-9c8b-1d2e3f4a5b6c"
+                        }
+                      },
+                      "type": "device_pool"
+                    }
+                  }
+                },
+                "rename": {
+                  "summary": "Rename a Resource",
+                  "value": {
+                    "resource": {
+                      "name": "Prod DB (primary)"
+                    }
+                  }
+                },
+                "set_pool_members": {
+                  "summary": "Replace the Clients a device pool names",
+                  "value": {
+                    "resource": {
+                      "device_membership_criteria": {
+                        "device": {
+                          "field": "id",
+                          "op": "in",
+                          "value": [
+                            "7cb89288-1fb3-433e-a522-2d087e45988d",
+                            "cc9f561a-444d-4083-ab38-0abc6cf2314c"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              },
               "schema": {
                 "$ref": "#/components/schemas/ResourceUpdateRequest"
               }
@@ -14985,6 +15846,51 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "device_pool": {
+                    "summary": "Device pool",
+                    "value": {
+                      "data": {
+                        "address": null,
+                        "address_description": null,
+                        "device_membership_criteria": {
+                          "device": {
+                            "field": "actor_id",
+                            "op": "eq",
+                            "value": {
+                              "subject": "actor_id"
+                            }
+                          }
+                        },
+                        "filters": [],
+                        "id": "5f0d3c1a-8e2b-4b7d-9a6c-3e4f5a6b7c8d",
+                        "name": "My Devices",
+                        "type": "device_pool"
+                      }
+                    }
+                  },
+                  "ip": {
+                    "summary": "IP Resource",
+                    "value": {
+                      "data": {
+                        "address": "10.0.0.10",
+                        "address_description": "Production Database",
+                        "filters": [
+                          {
+                            "ports": [
+                              "5432"
+                            ],
+                            "protocol": "tcp"
+                          }
+                        ],
+                        "id": "42a7f82f-831a-4a9d-8f17-c66c2bb6e205",
+                        "name": "Prod DB",
+                        "site_id": "0642e09d-b3a2-47e4-9cd1-c2195faeeb67",
+                        "type": "ip"
+                      }
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/ResourceResponse"
                 }
@@ -15998,7 +16904,8 @@
     "/resources/{resource_id}/pool_members": {
       "get": {
         "callbacks": {},
-        "description": "Lists the Clients belonging to a `static_device_pool` Resource.\n\nReturns 400 for any other Resource type - only device pools have members.\n",
+        "deprecated": true,
+        "description": "Deprecated. Read `device_membership_criteria` on the Resource instead, which\nalso describes the pools that pick their members by a rule.\n\nLists the Clients a `device_pool` Resource names as its members.\n\nReturns 400 for any other Resource type, and for a device pool whose members are\npicked by a rule rather than named.\n",
         "operationId": "PortalAPI.PoolMemberController.index",
         "parameters": [
           {
@@ -16132,7 +17039,8 @@
       },
       "patch": {
         "callbacks": {},
-        "description": "Adds and/or removes individual Clients, leaving every other member of the\npool untouched.\n\nBoth operations are idempotent: adding a Client already in the pool and\nremoving one that isn't are both no-ops. `remove` is applied before `add`,\nso a Client named in both ends up in the pool.\n",
+        "deprecated": true,
+        "description": "Deprecated. Write `device_membership_criteria` on the Resource instead.\n\nAdds and/or removes individual Clients, leaving every other member of the\npool untouched.\n\nBoth operations are idempotent: adding a Client already in the pool and\nremoving one that isn't are both no-ops. `remove` is applied before `add`,\nso a Client named in both ends up in the pool.\n\nRemoving a Client drops its connections through the pool. Every other connection\nthrough the pool is left alone.\n",
         "operationId": "PortalAPI.PoolMemberController.update_patch",
         "parameters": [
           {
@@ -16277,7 +17185,8 @@
       },
       "put": {
         "callbacks": {},
-        "description": "Replaces the Resource's entire membership list with the given Clients.\n\nAny Client not named in the request is removed from the pool. To add or\nremove individual Clients without disturbing the rest, use `PATCH`.\n",
+        "deprecated": true,
+        "description": "Deprecated. Write `device_membership_criteria` on the Resource instead.\n\nReplaces the Resource's entire membership list with the given Clients.\n\nAny Client not named in the request is removed from the pool. To add or\nremove individual Clients without disturbing the rest, use `PATCH`.\n\nRemoving a Client drops its connections through the pool. Every other connection\nthrough the pool is left alone.\n",
         "operationId": "PortalAPI.PoolMemberController.update_put",
         "parameters": [
           {

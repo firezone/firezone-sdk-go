@@ -8,7 +8,7 @@ import (
 // PoolMember is a Client's minimal representation as returned by
 // [PoolMembersService.List].
 //
-// Pool members are Client devices, not Actors - a static device pool
+// Pool members are Client devices, not Actors - a listed device pool
 // grants access to specific machines, so this is not the device-shaped
 // equivalent of [GroupMember] despite the similar surface.
 type PoolMember struct {
@@ -18,10 +18,10 @@ type PoolMember struct {
 }
 
 // PoolMembersService manages the membership of a single
-// static_device_pool Resource. Obtain one via
+// device_pool Resource. Obtain one via
 // [ResourcesService.PoolMembers].
 //
-// Every method returns 400 if the Resource is not a static_device_pool;
+// Every method returns 400 if the Resource is not a device_pool with listed-device criteria;
 // no other Resource type has members.
 type PoolMembersService struct {
 	client     *Client
