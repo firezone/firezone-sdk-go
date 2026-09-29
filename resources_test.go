@@ -2,7 +2,9 @@ package firezone_test
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
+	"reflect"
 	"testing"
 
 	firezone "github.com/firezone/firezone-sdk-go"
@@ -151,37 +153,92 @@ func TestResourcesService_Create_DevicePoolRejected(t *testing.T) {
 
 	_, err := client.Resources.Create(context.Background(), &firezone.CreateResourceRequest{
 		Name: "field-laptops",
-		Type: firezone.ResourceTypeStaticDevicePool,
+		Type: firezone.ResourceTypeDevicePool,
 	})
 	if !firezone.IsValidation(err) {
 		t.Fatalf("IsValidation(err) = false, want true (err: %v)", err)
 	}
 }
 
-// TestResourcesService_List_FilterByDevicePool guards the reason the
-// constant still exists: existing pools remain readable and filterable
-// even though they can't be created.
+// TestResourcesService_List_FilterByDevicePool checks the current pool type filter.
 func TestResourcesService_List_FilterByDevicePool(t *testing.T) {
 	var gotQuery string
 	client := testutil.NewClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotQuery = r.URL.RawQuery
 		testutil.JSONResponse(http.StatusOK, map[string]any{
 			"data": []map[string]any{
-				{"id": "res-1", "name": "field-laptops", "type": "static_device_pool"},
+				{"id": "res-1", "name": "field-laptops", "type": "device_pool"},
 			},
 			"metadata": map[string]any{"count": 1, "limit": 50},
 		})(w, r)
 	}))
 
 	page, err := client.Resources.List(context.Background(),
-		&firezone.ResourceListOptions{Type: firezone.ResourceTypeStaticDevicePool})
+		&firezone.ResourceListOptions{Type: firezone.ResourceTypeDevicePool})
 	if err != nil {
 		t.Fatalf("List returned error: %v", err)
 	}
-	if gotQuery != "type=static_device_pool" {
-		t.Errorf("query = %q, want type=static_device_pool", gotQuery)
+	if gotQuery != "type=device_pool" {
+		t.Errorf("query = %q, want type=device_pool", gotQuery)
 	}
-	if len(page.Data) != 1 || page.Data[0].Type != firezone.ResourceTypeStaticDevicePool {
-		t.Errorf("page.Data = %+v, want one static_device_pool Resource", page.Data)
+	if len(page.Data) != 1 || page.Data[0].Type != firezone.ResourceTypeDevicePool {
+		t.Errorf("page.Data = %+v, want one device_pool Resource", page.Data)
+	}
+}
+
+func TestResourcesService_DevicePools(t *testing.T) {
+	for _, criteria := range []string{
+		`{"device":{"field":"id","op":"in","value":[]}}`,
+		`{"device":{"field":"id","op":"in","value":["11111111-2222-3333-4444-555555555555"]}}`,
+		`{"device":{"field":"actor_id","op":"eq","value":{"subject":"actor_id"}}}`,
+		`{"device":{"field":"account_id","op":"eq","value":{"subject":"account_id"}}}`,
+		`{"actor_group":{"field":"id","op":"eq","value":"11111111-2222-3333-4444-555555555555"}}`,
+	} {
+		t.Run(criteria, func(t *testing.T) {
+			client := testutil.NewClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method == http.MethodPost || r.Method == http.MethodPatch {
+					var body map[string]map[string]json.RawMessage
+					decodeJSONBody(t, r, &body)
+					var got, want any
+					if err := json.Unmarshal(body["resource"]["device_membership_criteria"], &got); err != nil {
+						t.Fatal(err)
+					}
+					if err := json.Unmarshal([]byte(criteria), &want); err != nil {
+						t.Fatal(err)
+					}
+					if !reflect.DeepEqual(got, want) {
+						t.Errorf("criteria = %v, want %v", got, want)
+					}
+				}
+				res := map[string]any{"id": "pool-1", "type": "device_pool", "name": "pool", "device_membership_criteria": json.RawMessage(criteria)}
+				var data any = res
+				if r.Method == http.MethodGet && r.URL.Path == "/resources" {
+					data = []any{res}
+				}
+				testutil.JSONResponse(http.StatusOK, map[string]any{"data": data})(w, r)
+			}))
+			ctx := context.Background()
+			created, err := client.Resources.Create(ctx, &firezone.CreateResourceRequest{Name: "pool", Type: firezone.ResourceTypeDevicePool, DeviceMembershipCriteria: json.RawMessage(criteria)})
+			if err != nil {
+				t.Fatal(err)
+			}
+			updated, err := client.Resources.Update(ctx, created.ID, &firezone.UpdateResourceRequest{DeviceMembershipCriteria: json.RawMessage(criteria)})
+			if err != nil {
+				t.Fatal(err)
+			}
+			found, err := client.Resources.Get(ctx, created.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			page, err := client.Resources.List(ctx, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, res := range []*firezone.Resource{created, updated, found, &page.Data[0]} {
+				if res.Type != firezone.ResourceTypeDevicePool || len(res.DeviceMembershipCriteria) == 0 {
+					t.Fatalf("lost device pool fields: %+v", res)
+				}
+			}
+		})
 	}
 }
