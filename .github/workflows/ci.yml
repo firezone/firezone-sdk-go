@@ -76,6 +76,9 @@ jobs:
       - name: Check struct tags against the OpenAPI spec
         run: mise run spec-check
 
+      - name: Check generated posture fields are up to date
+        run: mise run generate-check
+
       - name: Scan for known vulnerabilities (govulncheck)
         run: mise run vuln
 

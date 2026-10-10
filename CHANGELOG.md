@@ -16,6 +16,24 @@ they will require a new major version.
 
 ## [Unreleased]
 
+### Added
+
+- Device posture expressions on Policies. `Policy.Postures`,
+  `CreatePolicyRequest.Postures` and `UpdatePolicyRequest.Postures`
+  carry a `PostureNode` tree built with `PostureAnd`, `PostureOr`,
+  `PostureNot` and typed checks. On update, `Clear[PostureNode]()`
+  removes the expression and `Set(node)` replaces it. A node that is not
+  exactly one of the four shapes fails before any request is sent.
+- A typed constant for each of the 383 fields a posture can test, for
+  example `PostureIntuneComplianceState`, with the platforms it applies
+  to in its doc comment. Each constant's type carries only the operators
+  the API accepts for that kind of attribute, so
+  `PostureIntuneEnrolled.Is(true)` compiles and
+  `PostureIntuneEnrolled.Gt(1)` does not. `PostureCheck` remains for a
+  field newer than the SDK.
+- `mise run generate` regenerates the constants from the vendored spec;
+  `generate-check` runs in CI to catch a spec refresh that skipped it.
+
 ## [0.1.1] - 2026-09-10
 
 ### Added

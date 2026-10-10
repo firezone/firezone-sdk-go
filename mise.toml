@@ -107,6 +107,24 @@ echo "updated testdata/openapi.json from $src"
 git --no-pager diff --stat -- testdata/openapi.json
 """
 
+[tasks.generate]
+description = "Regenerate posture_fields_gen.go from testdata/openapi.json"
+run = "go generate ./..."
+
+# Fails when the committed generated file no longer matches the vendored
+# spec - the usual cause is a spec refresh that skipped `mise run
+# generate`.
+[tasks.generate-check]
+description = "Check posture_fields_gen.go is up to date (CI check)"
+run = """
+go generate ./...
+if ! git diff --quiet -- posture_fields_gen.go; then
+  echo "posture_fields_gen.go is stale; run 'mise run generate' and commit the result" >&2
+  git --no-pager diff --stat -- posture_fields_gen.go >&2
+  exit 1
+fi
+"""
+
 [tasks.vuln]
 description = "govulncheck (CI check)"
 run = "govulncheck ./..."
@@ -117,4 +135,4 @@ run = "go build ./..."
 
 [tasks.check]
 description = "Run all CI static analysis + unit test checks (matches CI)"
-depends = ["fmt-check", "vet", "lint", "test", "spec-check", "vuln", "build"]
+depends = ["fmt-check", "vet", "lint", "test", "spec-check", "generate-check", "vuln", "build"]

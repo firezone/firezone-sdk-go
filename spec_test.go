@@ -63,6 +63,7 @@ var schemaFor = map[string]string{
 // the test - that is deliberate, so a new resource can't be added
 // without someone deciding which bucket it belongs in.
 var skipTypes = map[string]string{
+	"postureWire":  "wire form of PostureNode, which the spec describes as a oneOf of and/or/not/leaf schemas rather than one object",
 	"AuthProvider": "embedded base type; its fields are checked via each concrete provider",
 	// The envelopes are the wrapper the spec describes per response
 	// schema rather than as a schema of their own; every *Response
