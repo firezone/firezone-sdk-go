@@ -81,6 +81,11 @@ type Policy struct {
 	FlowLogUploadsEnabled bool        `json:"flow_log_uploads_enabled"`
 	IsDisabled            bool        `json:"is_disabled"`
 	Conditions            []Condition `json:"conditions"`
+
+	// Postures is the device posture expression the connecting device
+	// must satisfy in addition to every Condition, or nil when the
+	// Policy requires none.
+	Postures *PostureNode `json:"postures,omitempty"`
 }
 
 // CreatePolicyRequest is the request body for [PoliciesService.Create].
@@ -91,6 +96,12 @@ type CreatePolicyRequest struct {
 	FlowLogUploadsEnabled *bool       `json:"flow_log_uploads_enabled,omitempty"`
 	IsDisabled            *bool       `json:"is_disabled,omitempty"`
 	Conditions            []Condition `json:"conditions,omitempty"`
+
+	// Postures is a device posture expression the connecting device
+	// must satisfy in addition to every Condition. nil requires none.
+	// Needs the account's device_posture entitlement; otherwise the API
+	// answers 403.
+	Postures *PostureNode `json:"postures,omitempty"`
 }
 
 // UpdatePolicyRequest is the request body for [PoliciesService.Update].
@@ -110,6 +121,14 @@ type UpdatePolicyRequest struct {
 	// them unchanged; a pointer to an empty slice removes all of them,
 	// making the Policy grant access unconditionally.
 	Conditions *[]Condition `json:"conditions,omitempty"`
+	// Postures replaces the whole posture expression - it is not
+	// merged. nil leaves it unchanged, Clear[PostureNode]() removes it,
+	// and Set(node) replaces it. Clearing is always allowed; setting
+	// needs the account's device_posture entitlement (403 otherwise).
+	//
+	// Changing postures revokes the Policy's active authorizations and
+	// interrupts the affected connections until they reauthorize.
+	Postures *Null[PostureNode] `json:"postures,omitempty"`
 }
 
 // PoliciesService manages Policies.
