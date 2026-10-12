@@ -23,3 +23,14 @@ changes. Reformatting it would bury the real change in noise.
 Refreshing the spec is a deliberate act: the diff is the list of API
 changes this SDK has not accounted for yet, and it belongs in the same
 pull request as the code that responds to it.
+
+After you refresh the spec, regenerate the posture field constants:
+
+```bash
+mise run generate
+```
+
+A refresh can add fields that a Policy posture accepts. The constants in
+`posture_fields_gen.go` come from this file. CI runs `mise run
+generate-check` and fails if the committed constants do not match the
+spec. Commit the regenerated file in the same pull request.
