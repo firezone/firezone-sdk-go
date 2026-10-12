@@ -27,12 +27,13 @@ package firezone_test
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/rand/v2"
+	"math/big"
 	"net/http"
 	"os"
 	"strings"
@@ -61,7 +62,16 @@ const (
 // runID distinguishes objects from concurrent or repeated runs, so a
 // name collision can't fail a test for reasons that have nothing to do
 // with the SDK.
-var runID = fmt.Sprintf("%d%04d", time.Now().Unix()%100000, rand.IntN(10000))
+var runID = fmt.Sprintf("%d%04d", time.Now().Unix()%100000, randIntN(10000))
+
+// randIntN returns a random int in [0, n) from crypto/rand.
+func randIntN(n int64) int64 {
+	v, err := rand.Int(rand.Reader, big.NewInt(n))
+	if err != nil {
+		panic(err)
+	}
+	return v.Int64()
+}
 
 // nameSeq keeps names unique within a run.
 var nameSeq atomic.Int64
@@ -174,7 +184,7 @@ func newResource(t *testing.T, c *firezone.Client, siteID string) *firezone.Reso
 	resource, err := c.Resources.Create(ctx(), &firezone.CreateResourceRequest{
 		Name:               uniqueName("resource"),
 		Type:               firezone.ResourceTypeCIDR,
-		Address:            fmt.Sprintf("10.%d.%d.0/24", rand.IntN(256), rand.IntN(256)),
+		Address:            fmt.Sprintf("10.%d.%d.0/24", randIntN(256), randIntN(256)),
 		AddressDescription: "created by the Go SDK acceptance tests",
 		SiteID:             siteID,
 	})
@@ -656,7 +666,7 @@ func TestIntegration_ResourceCRUD(t *testing.T) {
 	resource, err := c.Resources.Create(ctx(), &firezone.CreateResourceRequest{
 		Name:    name,
 		Type:    firezone.ResourceTypeCIDR,
-		Address: fmt.Sprintf("10.%d.%d.0/24", rand.IntN(256), rand.IntN(256)),
+		Address: fmt.Sprintf("10.%d.%d.0/24", randIntN(256), randIntN(256)),
 		SiteID:  site.ID,
 	})
 	if err != nil {

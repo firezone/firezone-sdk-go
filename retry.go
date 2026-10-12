@@ -2,10 +2,11 @@ package firezone
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"math"
-	"math/rand/v2"
+	"math/big"
 	"net/url"
 	"time"
 )
@@ -110,5 +111,10 @@ func retryJitter(base time.Duration) time.Duration {
 	if window <= 0 {
 		return 0
 	}
-	return time.Duration(rand.Int64N(int64(window)))
+	n, err := rand.Int(rand.Reader, big.NewInt(int64(window)))
+	if err != nil {
+		// Jitter is best-effort padding; no padding is a safe fallback.
+		return 0
+	}
+	return time.Duration(n.Int64())
 }
