@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"go/format"
 	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -74,7 +75,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "genposture:", err)
 		os.Exit(1)
 	}
-	if err := os.WriteFile(*out, src, 0o644); err != nil {
+	if err := os.WriteFile(*out, src, 0o600); err != nil {
 		fmt.Fprintln(os.Stderr, "genposture:", err)
 		os.Exit(1)
 	}
@@ -83,7 +84,7 @@ func main() {
 var tableRow = regexp.MustCompile("(?m)^\\| `([a-z0-9_.]+)` \\| (\\w+) \\| ([^|]+) \\|$")
 
 func load(path string) ([]field, error) {
-	raw, err := os.ReadFile(path)
+	raw, err := os.ReadFile(filepath.Clean(path))
 	if err != nil {
 		return nil, err
 	}
