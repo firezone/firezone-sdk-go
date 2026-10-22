@@ -9,9 +9,9 @@ import (
 	"github.com/firezone/firezone-sdk-go/internal/testutil"
 )
 
-// TestAuthProvidersService_List_NameFilter checks all five services
-// push the name filter to the API rather than scanning, and hit the
-// right endpoint. The five are near-identical, so a copy-paste slip in
+// TestAuthProvidersService_List_NameFilter checks every provider service
+// pushes the name filter to the API rather than scanning, and hits the
+// right endpoint. The services are near-identical, so a copy-paste slip in
 // one path would otherwise go unnoticed.
 func TestAuthProvidersService_List_NameFilter(t *testing.T) {
 	tests := []struct {
@@ -58,6 +58,14 @@ func TestAuthProvidersService_List_NameFilter(t *testing.T) {
 				return err
 			},
 			wantPath: "/okta_auth_providers",
+		},
+		{
+			name: "github",
+			call: func(c *firezone.Client, o *firezone.AuthProviderListOptions) error {
+				_, err := c.GitHubAuthProviders.List(context.Background(), o)
+				return err
+			},
+			wantPath: "/github_auth_providers",
 		},
 	}
 
@@ -167,6 +175,31 @@ func TestAuthProvidersService_Get_TypeSpecificFields(t *testing.T) {
 		}
 		if p.EmailClaim != "upn" {
 			t.Errorf("EmailClaim = %q, want upn", p.EmailClaim)
+		}
+	})
+
+	t.Run("github", func(t *testing.T) {
+		var gotPath string
+		client := testutil.NewClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gotPath = r.URL.Path
+			testutil.JSONResponse(http.StatusOK, map[string]any{
+				"data": map[string]any{
+					"id": "ap-4", "name": "GitHub", "issuer": "https://github.com/login/oauth",
+					"is_default": true, "email_verification_method": "proof",
+					"inserted_at": "2024-01-01T00:00:00Z", "updated_at": "2024-01-01T00:00:00Z",
+				},
+			})(w, r)
+		}))
+
+		p, err := client.GitHubAuthProviders.Get(context.Background(), "ap-4")
+		if err != nil {
+			t.Fatalf("Get returned error: %v", err)
+		}
+		if gotPath != "/github_auth_providers/ap-4" {
+			t.Errorf("path = %q, want /github_auth_providers/ap-4", gotPath)
+		}
+		if p.ID != "ap-4" || !p.IsDefault || p.EmailVerificationMethod != "proof" {
+			t.Errorf("provider = %+v, want ID=ap-4 IsDefault=true EmailVerificationMethod=proof", p)
 		}
 	})
 }

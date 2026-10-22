@@ -33,6 +33,8 @@ they will require a new major version.
   field newer than the SDK.
 - `mise run generate` regenerates the constants from the vendored spec;
   `generate-check` runs in CI to catch a spec refresh that skipped it.
+- `GitHubAuthProviders`, a read-only service for GitHub auth providers,
+  with the same `Get` and `List` methods as the other provider types.
 
 ## [0.1.1] - 2026-09-10
 

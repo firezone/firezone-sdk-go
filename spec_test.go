@@ -752,9 +752,8 @@ func stringLit(e ast.Expr) (string, bool) {
 //
 // Embedded fields are flattened in, so a field on a shared base type is
 // checked against every concrete schema that carries it. That matters
-// here: the spec marks the session lifetimes nullable on only one of the
-// five auth providers even though the underlying column is identical for
-// all of them, so the rule has to fire on any schema that admits null.
+// here: the session lifetimes live on the shared AuthProvider base, so
+// the rule has to fire on any concrete schema that admits null.
 func TestSpecReadModelNullability(t *testing.T) {
 	specPath := findSpec(t)
 	raw := loadRawSchemas(t, specPath)
