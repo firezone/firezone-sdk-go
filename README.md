@@ -80,7 +80,7 @@ library only. CI builds against both the current Go release and the
 These are read-only (list and get only):
 
 * `EmailOTPAuthProviders`, `OIDCAuthProviders`, `GoogleAuthProviders`,
-  `EntraAuthProviders`, `OktaAuthProviders`
+  `EntraAuthProviders`, `OktaAuthProviders`, `GitHubAuthProviders`
 * `EntraDirectories`, `GoogleDirectories`, `OktaDirectories`
 
 Some API endpoints are deliberately not covered: `/account`, `/logs`,

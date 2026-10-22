@@ -30,9 +30,8 @@ type AuthProvider struct {
 	// decode null to 0, which reads as "sessions expire immediately"
 	// rather than "not configured".
 	//
-	// The spec marks these nullable only on the Entra provider, but the
-	// underlying schema is identical for all five, so treat every one of
-	// them as nullable.
+	// The underlying schema is identical for every provider type, so
+	// treat these as nullable on all of them.
 	ClientSessionLifetimeSecs *int `json:"client_session_lifetime_secs,omitempty"`
 	PortalSessionLifetimeSecs *int `json:"portal_session_lifetime_secs,omitempty"`
 
@@ -79,8 +78,18 @@ type OktaAuthProvider struct {
 	OktaDomain string `json:"okta_domain"`
 }
 
+// GitHubAuthProvider is a GitHub sign-in provider.
+type GitHubAuthProvider struct {
+	AuthProvider
+	IsDefault bool `json:"is_default"`
+	// EmailVerificationMethod controls how a GitHub identity is first
+	// linked to an existing user by email: "proof" emails a one-time
+	// code first, "none" links on a GitHub-verified email.
+	EmailVerificationMethod string `json:"email_verification_method"`
+}
+
 // AuthProviderListOptions extends ListOptions with the filters every
-// auth provider list endpoint accepts. Shared across the five types,
+// auth provider list endpoint accepts. Shared across all provider types,
 // which expose the same filter surface.
 type AuthProviderListOptions struct {
 	ListOptions
@@ -207,6 +216,30 @@ func (s *OktaAuthProvidersService) Get(ctx context.Context, id string) (*OktaAut
 // the API's default page size and no filters.
 func (s *OktaAuthProvidersService) List(ctx context.Context, opts *AuthProviderListOptions) (*Page[OktaAuthProvider], error) {
 	return doList[OktaAuthProvider](ctx, s.client, "GET", "okta_auth_providers", authProviderQuery(opts))
+}
+
+// GitHubAuthProvidersService reads GitHub auth providers.
+// Read-only - see [AuthProvider].
+type GitHubAuthProvidersService struct {
+	client *Client
+}
+
+// Get fetches a single GitHub auth provider by ID.
+func (s *GitHubAuthProvidersService) Get(ctx context.Context, id string) (*GitHubAuthProvider, error) {
+	if err := checkID("auth provider ID", id); err != nil {
+		return nil, err
+	}
+	var p GitHubAuthProvider
+	if err := s.client.do(ctx, "GET", buildPath("github_auth_providers", id), nil, nil, &p); err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
+// List returns a page of GitHub auth providers. Pass nil for opts to
+// use the API's default page size and no filters.
+func (s *GitHubAuthProvidersService) List(ctx context.Context, opts *AuthProviderListOptions) (*Page[GitHubAuthProvider], error) {
+	return doList[GitHubAuthProvider](ctx, s.client, "GET", "github_auth_providers", authProviderQuery(opts))
 }
 
 // authProviderQuery builds the query string for an auth provider list

@@ -1245,6 +1245,22 @@ func TestIntegration_AuthProviders(t *testing.T) {
 				nonEmpty(t, "OktaDomain", p.OktaDomain)
 			})
 	})
+
+	t.Run("GitHub", func(t *testing.T) {
+		checkReadOnly(t, "GitHub auth providers",
+			func(n string) (*firezone.Page[firezone.GitHubAuthProvider], error) {
+				return c.GitHubAuthProviders.List(ctx(), opts(n))
+			},
+			func(id string) (*firezone.GitHubAuthProvider, error) {
+				return c.GitHubAuthProviders.Get(ctx(), id)
+			},
+			func(p *firezone.GitHubAuthProvider) string { return p.ID },
+			func(p *firezone.GitHubAuthProvider) string { return p.Name },
+			func(t *testing.T, p *firezone.GitHubAuthProvider) {
+				verifyAuthProviderBase(t, &p.AuthProvider)
+				nonEmpty(t, "EmailVerificationMethod", p.EmailVerificationMethod)
+			})
+	})
 }
 
 // logSyncState reports the nullable sync fields every directory type

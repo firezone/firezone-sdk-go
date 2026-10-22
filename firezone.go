@@ -118,6 +118,8 @@ type Client struct {
 	EntraAuthProviders *EntraAuthProvidersService
 	// OktaAuthProviders reads Okta auth providers (read-only).
 	OktaAuthProviders *OktaAuthProvidersService
+	// GitHubAuthProviders reads GitHub auth providers (read-only).
+	GitHubAuthProviders *GitHubAuthProvidersService
 	// EntraDirectories reads Microsoft Entra directory connections
 	// (read-only).
 	EntraDirectories *EntraDirectoriesService
@@ -343,6 +345,7 @@ func NewClient(baseURL, token string, opts ...Option) (*Client, error) {
 	c.GoogleAuthProviders = &GoogleAuthProvidersService{client: c}
 	c.EntraAuthProviders = &EntraAuthProvidersService{client: c}
 	c.OktaAuthProviders = &OktaAuthProvidersService{client: c}
+	c.GitHubAuthProviders = &GitHubAuthProvidersService{client: c}
 	c.EntraDirectories = &EntraDirectoriesService{client: c}
 	c.GoogleDirectories = &GoogleDirectoriesService{client: c}
 	c.OktaDirectories = &OktaDirectoriesService{client: c}
