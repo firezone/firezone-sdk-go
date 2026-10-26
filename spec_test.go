@@ -472,6 +472,7 @@ type rawSchema struct {
 	Ref      string   `json:"$ref"`
 	Type     string   `json:"type"`
 	Nullable bool     `json:"nullable"`
+	Enum     []string `json:"enum"`
 	Required []string `json:"required"`
 	// AllOf composes a schema from several others. The spec uses it in
 	// exactly one place - the provisioned-gateway payload, which is a
@@ -836,4 +837,46 @@ func flattenedFieldTypes(t *testing.T) map[string][]structField {
 		out[name] = expand(name, 0)
 	}
 	return out
+}
+
+// A valid JSON tag alone cannot catch a removed condition property.
+func TestSpecConditionProperties(t *testing.T) {
+	raw := loadRawSchemas(t, findSpec(t))
+	allowed := raw.all["PolicyCondition"].Properties["property"].Enum
+	if len(allowed) == 0 {
+		t.Fatal("PolicyCondition.property has no enum")
+	}
+	file, err := parser.ParseFile(token.NewFileSet(), "policies.go", nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checked := 0
+	ast.Inspect(file, func(n ast.Node) bool {
+		decl, ok := n.(*ast.ValueSpec)
+		if !ok {
+			return true
+		}
+		typ, ok := decl.Type.(*ast.Ident)
+		if !ok || typ.Name != "ConditionProperty" {
+			return true
+		}
+		for _, value := range decl.Values {
+			literal, ok := value.(*ast.BasicLit)
+			if !ok || literal.Kind != token.STRING {
+				t.Fatal("condition property must be a string literal")
+			}
+			property, err := strconv.Unquote(literal.Value)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !contains(allowed, property) {
+				t.Errorf("condition property %q is no longer accepted by the portal", property)
+			}
+			checked++
+		}
+		return true
+	})
+	if checked == 0 {
+		t.Fatal("no condition property constants checked")
+	}
 }

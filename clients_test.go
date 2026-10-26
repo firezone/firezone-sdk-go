@@ -3,7 +3,10 @@ package firezone_test
 import (
 	"context"
 	"net/http"
+	"net/url"
+	"reflect"
 	"testing"
+	"time"
 
 	firezone "github.com/firezone/firezone-sdk-go"
 	"github.com/firezone/firezone-sdk-go/internal/testutil"
@@ -247,5 +250,39 @@ func TestClientsService_List_Filters(t *testing.T) {
 				t.Errorf("query = %q, want %q", gotQuery, tt.wantQuery)
 			}
 		})
+	}
+}
+
+func TestClientsService_List_PresenceAndActivityFilters(t *testing.T) {
+	before := time.Date(2026, 10, 25, 12, 30, 0, 123456789, time.FixedZone("offset", -7*60*60))
+	after := before.Add(-24 * time.Hour)
+	for _, online := range []*bool{nil, testBoolPointer(false), testBoolPointer(true)} {
+		opts := &firezone.ClientListOptions{ListOptions: firezone.ListOptions{Limit: 10, PageCursor: "next"}, Name: "laptop", FirezoneID: "fz-1", ActorID: "actor-1", Online: online, LastSeenBefore: &before, LastSeenAfter: &after, ClientType: firezone.ClientTypeGUI}
+		want := url.Values{"limit": {"10"}, "page_cursor": {"next"}, "name": {"laptop"}, "firezone_id": {"fz-1"}, "actor_id": {"actor-1"}, "client_type": {"gui"}, "last_seen_before": {"2026-10-25T12:30:00.123456789-07:00"}, "last_seen_after": {"2026-10-24T12:30:00.123456789-07:00"}}
+		if online != nil {
+			if *online {
+				want.Set("online", "true")
+			} else {
+				want.Set("online", "false")
+			}
+		}
+		client := testutil.NewClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !reflect.DeepEqual(r.URL.Query(), want) {
+				t.Errorf("query = %v, want %v", r.URL.Query(), want)
+			}
+			testutil.JSONResponse(http.StatusOK, map[string]any{"data": []any{}, "metadata": map[string]any{}})(w, r)
+		}))
+		if _, err := client.ClientDevices.List(context.Background(), opts); err != nil {
+			t.Fatal(err)
+		}
+	}
+	client := testutil.NewClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.RawQuery != "" {
+			t.Errorf("default query = %q", r.URL.RawQuery)
+		}
+		testutil.JSONResponse(http.StatusOK, map[string]any{"data": []any{}, "metadata": map[string]any{}})(w, r)
+	}))
+	if _, err := client.ClientDevices.List(context.Background(), nil); err != nil {
+		t.Fatal(err)
 	}
 }

@@ -69,3 +69,14 @@ func TestMembershipsService_Patch(t *testing.T) {
 		t.Errorf("len(ids) = %d, want 1", len(ids))
 	}
 }
+
+func TestMembershipsService_List_Email(t *testing.T) {
+	client := testutil.NewClient(t, testutil.JSONResponse(http.StatusOK, map[string]any{"data": []map[string]any{{"id": "user-1", "email": "user@example.com"}, {"id": "service-1", "email": nil}}, "metadata": map[string]any{"count": 2}}))
+	page, err := client.Groups.Memberships("group-1").List(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(page.Data) != 2 || page.Data[0].Email != "user@example.com" || page.Data[1].Email != "" {
+		t.Errorf("members = %+v", page.Data)
+	}
+}

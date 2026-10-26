@@ -13,7 +13,6 @@ const (
 	ConditionPropertyAuthProviderID         ConditionProperty = "auth_provider_id"
 	ConditionPropertyCurrentUTCDatetime     ConditionProperty = "current_utc_datetime"
 	ConditionPropertyClientVerified         ConditionProperty = "client_verified"
-	ConditionPropertyDeviceAttested         ConditionProperty = "device_attested"
 )
 
 // ConditionOperator is the comparison a policy [Condition] applies
@@ -61,10 +60,6 @@ const (
 //     [ConditionOperatorIsInDayOfWeekTimeRanges].
 //   - [ConditionPropertyClientVerified] with is: Values is a
 //     single-element list holding "true" or "false".
-//   - [ConditionPropertyDeviceAttested] with is: Values is a
-//     single-element list holding "true" or "false". "true" requires
-//     the Client to have presented a valid X.509 certificate from one
-//     of the account's trust anchors on its current connection.
 type Condition struct {
 	Property ConditionProperty `json:"property"`
 	Operator ConditionOperator `json:"operator"`
@@ -81,6 +76,10 @@ type Policy struct {
 	FlowLogUploadsEnabled bool        `json:"flow_log_uploads_enabled"`
 	IsDisabled            bool        `json:"is_disabled"`
 	Conditions            []Condition `json:"conditions"`
+	// RequireAttestation requires a valid X.509 certificate from an account
+	// trust anchor on the Client's current connection. Posture checks then
+	// match only identifiers proved by that certificate.
+	RequireAttestation bool `json:"require_attestation"`
 
 	// Postures is the device posture expression the connecting device
 	// must satisfy in addition to every Condition, or nil when the
@@ -90,12 +89,16 @@ type Policy struct {
 
 // CreatePolicyRequest is the request body for [PoliciesService.Create].
 type CreatePolicyRequest struct {
-	GroupID               string      `json:"group_id"`
-	ResourceID            string      `json:"resource_id"`
-	Description           string      `json:"description,omitempty"`
-	FlowLogUploadsEnabled *bool       `json:"flow_log_uploads_enabled,omitempty"`
-	IsDisabled            *bool       `json:"is_disabled,omitempty"`
-	Conditions            []Condition `json:"conditions,omitempty"`
+	GroupID               string `json:"group_id"`
+	ResourceID            string `json:"resource_id"`
+	Description           string `json:"description,omitempty"`
+	FlowLogUploadsEnabled *bool  `json:"flow_log_uploads_enabled,omitempty"`
+	IsDisabled            *bool  `json:"is_disabled,omitempty"`
+	// Conditions requires the policy_conditions entitlement when non-empty (403 otherwise).
+	Conditions []Condition `json:"conditions,omitempty"`
+	// RequireAttestation defaults to false. Setting true requires at least
+	// one account trust anchor; otherwise the API returns 422.
+	RequireAttestation *bool `json:"require_attestation,omitempty"`
 
 	// Postures is a device posture expression the connecting device
 	// must satisfy in addition to every Condition. nil requires none.
@@ -119,8 +122,14 @@ type UpdatePolicyRequest struct {
 	IsDisabled            *bool         `json:"is_disabled,omitempty"`
 	// Conditions replaces the Policy's conditions wholesale. nil leaves
 	// them unchanged; a pointer to an empty slice removes all of them,
-	// making the Policy grant access unconditionally.
+	// leaving any posture and attestation requirements in place. Non-empty
+	// conditions require the policy_conditions entitlement (403 otherwise);
+	// clearing them is allowed after an account downgrade.
 	Conditions *[]Condition `json:"conditions,omitempty"`
+	// RequireAttestation changes the certificate requirement. nil preserves
+	// it; a pointer to false removes it. Setting true without an account
+	// trust anchor returns 422.
+	RequireAttestation *bool `json:"require_attestation,omitempty"`
 	// Postures replaces the whole posture expression - it is not
 	// merged. nil leaves it unchanged, Clear[PostureNode]() removes it,
 	// and Set(node) replaces it. Clearing is always allowed; setting

@@ -51,52 +51,51 @@ func TestPoliciesService_Create(t *testing.T) {
 	}
 }
 
-func TestPoliciesService_Create_DeviceAttestedCondition(t *testing.T) {
-	var gotBody map[string]any
-	client := testutil.NewClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		decodeJSONBody(t, r, &gotBody)
-		testutil.JSONResponse(http.StatusCreated, map[string]any{
-			"data": map[string]any{
-				"id": "pol-1", "group_id": "group-1", "resource_id": "res-1",
-				"flow_log_uploads_enabled": true,
-				"conditions": []map[string]any{
-					{"property": "device_attested", "operator": "is", "values": []string{"true"}},
-				},
-			},
-		})(w, r)
-	}))
-
-	policy, err := client.Policies.Create(context.Background(), &firezone.CreatePolicyRequest{
-		GroupID:    "group-1",
-		ResourceID: "res-1",
-		Conditions: []firezone.Condition{{
-			Property: firezone.ConditionPropertyDeviceAttested,
-			Operator: firezone.ConditionOperatorIs,
-			Values:   []string{"true"},
-		}},
-	})
-	if err != nil {
-		t.Fatalf("Create returned error: %v", err)
-	}
-
-	reqPolicy, ok := gotBody["policy"].(map[string]any)
-	if !ok {
-		t.Fatalf("body[\"policy\"] = %v, want an object", gotBody["policy"])
-	}
-	conds, ok := reqPolicy["conditions"].([]any)
-	if !ok || len(conds) != 1 {
-		t.Fatalf("body policy.conditions = %v, want 1 condition", reqPolicy["conditions"])
-	}
-	cond, ok := conds[0].(map[string]any)
-	if !ok {
-		t.Fatalf("condition = %v, want an object", conds[0])
-	}
-	if cond["property"] != "device_attested" {
-		t.Errorf("condition.property = %v, want device_attested", cond["property"])
-	}
-
-	if len(policy.Conditions) != 1 || policy.Conditions[0].Property != firezone.ConditionPropertyDeviceAttested {
-		t.Errorf("policy.Conditions = %+v, want a single device_attested condition", policy.Conditions)
+// Attestation must support explicit false on update as well as omission.
+func TestPoliciesService_RequireAttestation(t *testing.T) {
+	for _, operation := range []string{"create", "update"} {
+		for _, value := range []*bool{nil, testBoolPointer(true), testBoolPointer(false)} {
+			label := "omitted"
+			if value != nil {
+				if *value {
+					label = "true"
+				} else {
+					label = "false"
+				}
+			}
+			t.Run(operation+"/"+label, func(t *testing.T) {
+				var body map[string]any
+				client := testutil.NewClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					decodeJSONBody(t, r, &body)
+					testutil.JSONResponse(http.StatusOK, map[string]any{"data": map[string]any{"id": "pol-1", "require_attestation": value != nil && *value}})(w, r)
+				}))
+				var policy *firezone.Policy
+				var err error
+				if operation == "create" {
+					policy, err = client.Policies.Create(context.Background(), &firezone.CreatePolicyRequest{GroupID: "g", ResourceID: "r", RequireAttestation: value})
+				} else {
+					policy, err = client.Policies.Update(context.Background(), "pol-1", &firezone.UpdatePolicyRequest{RequireAttestation: value})
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				fields := body["policy"].(map[string]any)
+				got, exists := fields["require_attestation"]
+				if value == nil {
+					if exists {
+						t.Error("omitted attestation was sent")
+					}
+				} else if !exists || got != *value {
+					t.Errorf("attestation = %v, want %v", got, *value)
+				}
+				if policy.RequireAttestation != (value != nil && *value) {
+					t.Errorf("decoded attestation = %v", policy.RequireAttestation)
+				}
+				if _, exists := fields["conditions"]; exists {
+					t.Error("attestation sent as conditions")
+				}
+			})
+		}
 	}
 }
 
@@ -338,3 +337,5 @@ func TestPoliciesService_List_Filters(t *testing.T) {
 		})
 	}
 }
+
+func testBoolPointer(v bool) *bool { return &v }

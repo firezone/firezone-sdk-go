@@ -161,10 +161,22 @@ func TestAuthProvidersService_Get_TypeSpecificFields(t *testing.T) {
 		}
 	})
 
+	t.Run("google", func(t *testing.T) {
+		client := testutil.NewClient(t, testutil.JSONResponse(http.StatusOK, map[string]any{"data": map[string]any{"id": "google-1", "issuer": "https://accounts.google.com", "workspace_domains": []string{"example.com", "example.org"}}}))
+		p, err := client.GoogleAuthProviders.Get(context.Background(), "google-1")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if p.Issuer != "https://accounts.google.com" || len(p.WorkspaceDomains) != 2 || p.WorkspaceDomains[0] != "example.com" || p.WorkspaceDomains[1] != "example.org" {
+			t.Errorf("Google provider = %+v", p)
+		}
+	})
+
 	t.Run("entra", func(t *testing.T) {
 		client := testutil.NewClient(t, testutil.JSONResponse(http.StatusOK, map[string]any{
 			"data": map[string]any{
 				"id": "ap-3", "name": "Entra", "email_claim": "upn",
+				"tenant_ids":  []string{"tenant-1", "tenant-2"},
 				"inserted_at": "2024-01-01T00:00:00Z", "updated_at": "2024-01-01T00:00:00Z",
 			},
 		}))
@@ -172,6 +184,9 @@ func TestAuthProvidersService_Get_TypeSpecificFields(t *testing.T) {
 		p, err := client.EntraAuthProviders.Get(context.Background(), "ap-3")
 		if err != nil {
 			t.Fatalf("Get returned error: %v", err)
+		}
+		if len(p.TenantIDs) != 2 || p.TenantIDs[0] != "tenant-1" || p.TenantIDs[1] != "tenant-2" {
+			t.Errorf("TenantIDs = %v", p.TenantIDs)
 		}
 		if p.EmailClaim != "upn" {
 			t.Errorf("EmailClaim = %q, want upn", p.EmailClaim)
