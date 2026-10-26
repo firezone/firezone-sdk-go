@@ -119,32 +119,6 @@ fields (`sites.go`, `resources.go`, `policies.go`, `groups.go`,
 `memberships.go`, `actors.go`, `gateways.go`, `clients.go`,
 `auth_providers.go`, `directories.go`, `pool_members.go`).
 
-## Portal API changes
-
-Entra auth providers expose verified `TenantIDs` instead of an issuer.
-Google providers expose verified `WorkspaceDomains`; an empty list means
-personal-only or an existing unrestricted provider. Other auth provider
-issuers live on their concrete types.
-
-Use `RequireAttestation` on policy create and update requests to require a
-Client certificate from an account trust anchor. It is a `*bool`: nil on
-update keeps the current setting, and a pointer to false removes it.
-The old `device_attested` condition is no longer accepted. Non-empty
-`Conditions` require the account's `policy_conditions` entitlement;
-clearing conditions is still allowed after a downgrade.
-
-`Groups.List` includes the built-in Everyone Group (`Type ==
-GroupTypeManaged`). It grants access to all user and admin Actors,
-excluding service accounts and API clients. Its memberships are implicit;
-it and its memberships cannot be modified. `GroupMember.Email` is empty
-for members with no email.
-
-`ClientListOptions` can filter by actor, current presence, latest connection
-time, and application type. Use `Online: &offline` with `offline := false`
-to select disconnected devices. The time filters fall back to creation
-time for devices that have never connected; a continuously connected
-Client can match `LastSeenBefore` unless also filtered by presence.
-
 ## Updating nullable fields
 
 The update endpoints are merge-patch: a field absent from the request
