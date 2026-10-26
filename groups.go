@@ -5,10 +5,21 @@ import (
 	"time"
 )
 
+// GroupType distinguishes static Groups from the built-in Everyone Group.
+type GroupType string
+
+// GroupType values.
+const (
+	GroupTypeStatic  GroupType = "static"
+	GroupTypeManaged GroupType = "managed"
+)
+
 // Group is a Firezone actor Group. Groups synced from an identity
 // provider have a non-empty DirectoryID and are read-only via this API
 // (writes return 403 Forbidden) - see [Group.IsSynced].
 type Group struct {
+	// Type is managed for Everyone, which cannot be updated or deleted.
+	Type        GroupType  `json:"type"`
 	ID          string     `json:"id"`
 	Name        string     `json:"name"`
 	Email       string     `json:"email,omitempty"`
@@ -107,7 +118,7 @@ func (s *GroupsService) Create(ctx context.Context, req *CreateGroupRequest) (*G
 }
 
 // Update updates a Group. Returns 403 Forbidden if the Group is synced
-// from an identity provider (see [Group.IsSynced]).
+// from an identity provider (see [Group.IsSynced]) or is managed.
 func (s *GroupsService) Update(ctx context.Context, id string, req *UpdateGroupRequest) (*Group, error) {
 	if err := checkID("Group ID", id); err != nil {
 		return nil, err
@@ -124,7 +135,7 @@ func (s *GroupsService) Update(ctx context.Context, id string, req *UpdateGroupR
 }
 
 // Delete deletes a Group. Returns 403 Forbidden if the Group is synced
-// from an identity provider (see [Group.IsSynced]).
+// from an identity provider (see [Group.IsSynced]) or is managed.
 func (s *GroupsService) Delete(ctx context.Context, id string) error {
 	if err := checkID("Group ID", id); err != nil {
 		return err

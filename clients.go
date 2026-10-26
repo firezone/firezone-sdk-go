@@ -2,6 +2,7 @@ package firezone
 
 import (
 	"context"
+	"strconv"
 	"time"
 )
 
@@ -66,6 +67,17 @@ func (s *ClientsService) Get(ctx context.Context, id string) (*ClientDevice, err
 	return &c, nil
 }
 
+// ClientType identifies the application from the latest session's user agent.
+type ClientType string
+
+// ClientType values.
+const (
+	ClientTypeHeadless ClientType = "headless"
+	ClientTypeGUI      ClientType = "gui"
+	ClientTypeApple    ClientType = "apple"
+	ClientTypeAndroid  ClientType = "android"
+)
+
 // ClientListOptions extends ListOptions with Clients-specific filters.
 type ClientListOptions struct {
 	ListOptions
@@ -76,6 +88,21 @@ type ClientListOptions struct {
 	// per actor rather than per account, so this too can match more than
 	// one - though in practice rarely does.
 	FirezoneID string
+	// ActorID filters to Clients owned by this Actor.
+	ActorID string
+	// Online filters by current presence. nil applies no filter; false
+	// selects disconnected Clients.
+	Online *bool
+	// LastSeenBefore selects Clients whose latest connection began before
+	// this time. Clients that never connected use their creation time.
+	// Combine with Online=false to exclude long-running connections.
+	LastSeenBefore *time.Time
+	// LastSeenAfter selects Clients whose latest connection began at or
+	// after this time, falling back to creation time for unconnected Clients.
+	LastSeenAfter *time.Time
+	// ClientType filters by the latest session's user agent. Clients with
+	// no recorded user agent match no type.
+	ClientType ClientType
 }
 
 // List returns a page of Clients. Pass nil for opts to use the API's
@@ -87,7 +114,18 @@ func (s *ClientsService) List(ctx context.Context, opts *ClientListOptions) (*Pa
 	q := filterQuery(opts.ListOptions,
 		[2]string{"name", opts.Name},
 		[2]string{"firezone_id", opts.FirezoneID},
+		[2]string{"actor_id", opts.ActorID},
+		[2]string{"client_type", string(opts.ClientType)},
 	)
+	if opts.Online != nil {
+		q.Set("online", strconv.FormatBool(*opts.Online))
+	}
+	if opts.LastSeenBefore != nil {
+		q.Set("last_seen_before", opts.LastSeenBefore.Format(time.RFC3339Nano))
+	}
+	if opts.LastSeenAfter != nil {
+		q.Set("last_seen_after", opts.LastSeenAfter.Format(time.RFC3339Nano))
+	}
 	return doList[ClientDevice](ctx, s.client, "GET", "clients", q)
 }
 

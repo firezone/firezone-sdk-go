@@ -1139,7 +1139,6 @@ func verifyAuthProviderBase(t *testing.T, p *firezone.AuthProvider) {
 	nonEmpty(t, "ID", p.ID)
 	nonEmpty(t, "AccountID", p.AccountID)
 	nonEmpty(t, "Name", p.Name)
-	nonEmpty(t, "Issuer", p.Issuer)
 	nonEmpty(t, "Context", p.Context)
 	nonZeroTime(t, "InsertedAt", p.InsertedAt)
 	nonZeroTime(t, "UpdatedAt", p.UpdatedAt)
@@ -1177,6 +1176,7 @@ func TestIntegration_AuthProviders(t *testing.T) {
 			func(p *firezone.EmailOTPAuthProvider) string { return p.Name },
 			func(t *testing.T, p *firezone.EmailOTPAuthProvider) {
 				verifyAuthProviderBase(t, &p.AuthProvider)
+				nonEmpty(t, "Issuer", p.Issuer)
 			})
 	})
 
@@ -1192,6 +1192,7 @@ func TestIntegration_AuthProviders(t *testing.T) {
 			func(p *firezone.OIDCAuthProvider) string { return p.Name },
 			func(t *testing.T, p *firezone.OIDCAuthProvider) {
 				verifyAuthProviderBase(t, &p.AuthProvider)
+				nonEmpty(t, "Issuer", p.Issuer)
 				nonEmpty(t, "ClientID", p.ClientID)
 				nonEmpty(t, "DiscoveryDocumentURI", p.DiscoveryDocumentURI)
 				nonEmpty(t, "EmailVerificationMethod", p.EmailVerificationMethod)
@@ -1210,6 +1211,7 @@ func TestIntegration_AuthProviders(t *testing.T) {
 			func(p *firezone.GoogleAuthProvider) string { return p.Name },
 			func(t *testing.T, p *firezone.GoogleAuthProvider) {
 				verifyAuthProviderBase(t, &p.AuthProvider)
+				nonEmpty(t, "Issuer", p.Issuer)
 			})
 	})
 
@@ -1226,6 +1228,9 @@ func TestIntegration_AuthProviders(t *testing.T) {
 			func(t *testing.T, p *firezone.EntraAuthProvider) {
 				verifyAuthProviderBase(t, &p.AuthProvider)
 				nonEmpty(t, "EmailClaim", p.EmailClaim)
+				if len(p.TenantIDs) == 0 {
+					t.Error("Entra provider has no verified tenants")
+				}
 			})
 	})
 
@@ -1241,6 +1246,7 @@ func TestIntegration_AuthProviders(t *testing.T) {
 			func(p *firezone.OktaAuthProvider) string { return p.Name },
 			func(t *testing.T, p *firezone.OktaAuthProvider) {
 				verifyAuthProviderBase(t, &p.AuthProvider)
+				nonEmpty(t, "Issuer", p.Issuer)
 				nonEmpty(t, "ClientID", p.ClientID)
 				nonEmpty(t, "OktaDomain", p.OktaDomain)
 			})
@@ -1258,6 +1264,7 @@ func TestIntegration_AuthProviders(t *testing.T) {
 			func(p *firezone.GitHubAuthProvider) string { return p.Name },
 			func(t *testing.T, p *firezone.GitHubAuthProvider) {
 				verifyAuthProviderBase(t, &p.AuthProvider)
+				nonEmpty(t, "Issuer", p.Issuer)
 				nonEmpty(t, "EmailVerificationMethod", p.EmailVerificationMethod)
 			})
 	})
@@ -1369,5 +1376,69 @@ func TestIntegration_ReportLeftovers(t *testing.T) {
 	if len(stale) > 0 {
 		t.Logf("%d Site(s) left by earlier runs (delete by the %q prefix): %s",
 			len(stale), namePrefix, strings.Join(stale, ", "))
+	}
+}
+
+func TestIntegration_EveryoneGroup(t *testing.T) {
+	c := integrationClient(t)
+	page, err := c.Groups.List(ctx(), &firezone.GroupListOptions{Name: "Everyone"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var everyone *firezone.Group
+	for i := range page.Data {
+		if page.Data[i].Type == firezone.GroupTypeManaged {
+			everyone = &page.Data[i]
+			break
+		}
+	}
+	if everyone == nil {
+		t.Fatal("Everyone group missing from list")
+	}
+	got, err := c.Groups.Get(ctx(), everyone.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Type != firezone.GroupTypeManaged {
+		t.Errorf("Everyone type = %q", got.Type)
+	}
+	members, err := c.Groups.Memberships(everyone.ID).List(ctx(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, member := range members.Data {
+		if member.Type != firezone.ActorTypeAccountUser && member.Type != firezone.ActorTypeAccountAdminUser {
+			t.Errorf("unexpected Everyone member: %+v", member)
+		}
+	}
+}
+
+func TestIntegration_PolicyAttestation(t *testing.T) {
+	c := integrationClient(t)
+	site := newSite(t, c)
+	resource := newResource(t, c, site.ID)
+	group := newGroup(t, c)
+	policy, err := c.Policies.Create(ctx(), &firezone.CreatePolicyRequest{GroupID: group.ID, ResourceID: resource.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cleanup(t, "Policy "+policy.ID, func() error { return c.Policies.Delete(ctx(), policy.ID) })
+	if policy.RequireAttestation {
+		t.Error("attestation should default to false")
+	}
+	disabled := false
+	updated, err := c.Policies.Update(ctx(), policy.ID, &firezone.UpdatePolicyRequest{RequireAttestation: &disabled})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.RequireAttestation {
+		t.Error("attestation remains enabled after explicit false")
+	}
+	fetched, err := c.Policies.Get(ctx(), policy.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fetched.RequireAttestation {
+		t.Error("attestation false was not persisted")
 	}
 }

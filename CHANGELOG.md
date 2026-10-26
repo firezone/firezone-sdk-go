@@ -16,7 +16,32 @@ they will require a new major version.
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** Replace `ConditionPropertyDeviceAttested` conditions with
+  `CreatePolicyRequest.RequireAttestation` or
+  `UpdatePolicyRequest.RequireAttestation`. Pass a pointer to `true` to
+  require a certificate, a pointer to `false` to remove the requirement,
+  or nil on update to preserve it. Setting true without an account trust
+  anchor returns 422.
+- **Breaking:** `AuthProvider.Issuer` moved to the concrete Email OTP,
+  OIDC, Google, Okta, and GitHub provider types. Access `provider.Issuer`
+  directly on those types. Entra no longer has an issuer; use its verified
+  `TenantIDs` instead. Update struct literals that set the embedded issuer.
+- Non-empty policy conditions require the `policy_conditions` entitlement
+  (403 otherwise). Clearing conditions remains allowed after a downgrade.
+- Refresh the vendored OpenAPI spec from the current portal. Posture
+  provider lifecycle endpoints remain outside the SDK's documented scope.
+
 ### Added
+
+- `EntraAuthProvider.TenantIDs`, `GoogleAuthProvider.WorkspaceDomains`,
+  `Actor.DisabledByDirectoryID`, `Group.Type` (with `GroupType` constants),
+  and `GroupMember.Email`.
+- Client filters for `ActorID`, `Online`, `LastSeenBefore`, `LastSeenAfter`,
+  and `ClientType` (with constants for headless, GUI, Apple, and Android).
+  A nil `Online` leaves presence unfiltered; a pointer to false selects
+  disconnected devices.
 
 - Device posture expressions on Policies. `Policy.Postures`,
   `CreatePolicyRequest.Postures` and `UpdatePolicyRequest.Postures`

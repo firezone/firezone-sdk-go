@@ -21,16 +21,19 @@ const (
 
 // Actor is a Firezone Actor - a user, admin, or service account.
 type Actor struct {
-	ID                   string     `json:"id"`
-	Name                 string     `json:"name"`
-	Type                 ActorType  `json:"type"`
-	Email                string     `json:"email,omitempty"`
-	AllowEmailOTPSignIn  bool       `json:"allow_email_otp_sign_in"`
-	IsDisabled           bool       `json:"is_disabled"`
-	LastSeenAt           *time.Time `json:"last_seen_at,omitempty"`
-	CreatedByDirectoryID string     `json:"created_by_directory_id,omitempty"`
-	InsertedAt           time.Time  `json:"inserted_at"`
-	UpdatedAt            time.Time  `json:"updated_at"`
+	ID                  string     `json:"id"`
+	Name                string     `json:"name"`
+	Type                ActorType  `json:"type"`
+	Email               string     `json:"email,omitempty"`
+	AllowEmailOTPSignIn bool       `json:"allow_email_otp_sign_in"`
+	IsDisabled          bool       `json:"is_disabled"`
+	LastSeenAt          *time.Time `json:"last_seen_at,omitempty"`
+	// DisabledByDirectoryID identifies the directory that disabled an inactive
+	// user. Empty means enabled or disabled by an admin.
+	DisabledByDirectoryID string    `json:"disabled_by_directory_id,omitempty"`
+	CreatedByDirectoryID  string    `json:"created_by_directory_id,omitempty"`
+	InsertedAt            time.Time `json:"inserted_at"`
+	UpdatedAt             time.Time `json:"updated_at"`
 }
 
 // IsSynced reports whether the Actor was created by an identity

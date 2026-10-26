@@ -24,6 +24,17 @@ func TestGroupsService_Get(t *testing.T) {
 		}
 	})
 
+	t.Run("Everyone", func(t *testing.T) {
+		client := testutil.NewClient(t, testutil.JSONResponse(http.StatusOK, map[string]any{"data": map[string]any{"id": "everyone", "name": "Everyone", "type": "managed", "directory_id": nil}}))
+		group, err := client.Groups.Get(context.Background(), "everyone")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if group.Type != firezone.GroupTypeManaged || group.IsSynced() {
+			t.Errorf("Everyone = %+v", group)
+		}
+	})
+
 	t.Run("synced group", func(t *testing.T) {
 		client := testutil.NewClient(t, testutil.JSONResponse(http.StatusOK, map[string]any{
 			"data": map[string]any{"id": "group-1", "name": "Engineering", "directory_id": "dir-1", "idp_id": "idp-abc"},

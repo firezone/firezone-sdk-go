@@ -5,9 +5,10 @@ import "context"
 // GroupMember is an Actor's minimal representation as returned by
 // [MembershipsService.List].
 type GroupMember struct {
-	ID   string    `json:"id"`
-	Name string    `json:"name"`
-	Type ActorType `json:"type"`
+	ID    string    `json:"id"`
+	Name  string    `json:"name"`
+	Email string    `json:"email,omitempty"`
+	Type  ActorType `json:"type"`
 }
 
 // MembershipsService manages a single Group's memberships. Obtain one
@@ -21,7 +22,9 @@ func (s *MembershipsService) basePath() string {
 	return buildPath("groups", s.groupID, "memberships")
 }
 
-// List returns a page of the Group's members.
+// List returns a page of the Group's members. For the managed Everyone
+// Group, these are all user and admin Actors, excluding service accounts
+// and API clients. Its memberships are implicit and cannot be modified.
 func (s *MembershipsService) List(ctx context.Context, opts *ListOptions) (*Page[GroupMember], error) {
 	if err := checkID("Group ID", s.groupID); err != nil {
 		return nil, err

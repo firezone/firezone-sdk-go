@@ -16,7 +16,6 @@ type AuthProvider struct {
 	ID        string `json:"id"`
 	AccountID string `json:"account_id"`
 	Name      string `json:"name"`
-	Issuer    string `json:"issuer"`
 	Context   string `json:"context"`
 
 	// ClientSessionLifetimeSecs and PortalSessionLifetimeSecs are how
@@ -46,11 +45,13 @@ type AuthProvider struct {
 // fallback rather than something a sign-in page defaults to.
 type EmailOTPAuthProvider struct {
 	AuthProvider
+	Issuer string `json:"issuer"`
 }
 
 // OIDCAuthProvider is a generic OpenID Connect provider.
 type OIDCAuthProvider struct {
 	AuthProvider
+	Issuer                  string `json:"issuer"`
 	IsDefault               bool   `json:"is_default"`
 	ClientID                string `json:"client_id"`
 	DiscoveryDocumentURI    string `json:"discovery_document_uri"`
@@ -60,19 +61,26 @@ type OIDCAuthProvider struct {
 // GoogleAuthProvider is a Google Workspace sign-in provider.
 type GoogleAuthProvider struct {
 	AuthProvider
-	IsDefault bool `json:"is_default"`
+	// WorkspaceDomains lists the verified Workspace domains allowed to sign in.
+	// Empty means personal-only or an existing unrestricted provider.
+	WorkspaceDomains []string `json:"workspace_domains"`
+	Issuer           string   `json:"issuer"`
+	IsDefault        bool     `json:"is_default"`
 }
 
 // EntraAuthProvider is a Microsoft Entra sign-in provider.
 type EntraAuthProvider struct {
 	AuthProvider
-	IsDefault  bool   `json:"is_default"`
-	EmailClaim string `json:"email_claim"`
+	// TenantIDs lists the verified Entra tenants allowed to sign in.
+	TenantIDs  []string `json:"tenant_ids"`
+	IsDefault  bool     `json:"is_default"`
+	EmailClaim string   `json:"email_claim"`
 }
 
 // OktaAuthProvider is an Okta sign-in provider.
 type OktaAuthProvider struct {
 	AuthProvider
+	Issuer     string `json:"issuer"`
 	IsDefault  bool   `json:"is_default"`
 	ClientID   string `json:"client_id"`
 	OktaDomain string `json:"okta_domain"`
@@ -81,7 +89,8 @@ type OktaAuthProvider struct {
 // GitHubAuthProvider is a GitHub sign-in provider.
 type GitHubAuthProvider struct {
 	AuthProvider
-	IsDefault bool `json:"is_default"`
+	Issuer    string `json:"issuer"`
+	IsDefault bool   `json:"is_default"`
 	// EmailVerificationMethod controls how a GitHub identity is first
 	// linked to an existing user by email: "proof" emails a one-time
 	// code first, "none" links on a GitHub-verified email.

@@ -8,6 +8,7 @@ checkout alongside this one.
 
 - **Source:** `elixir/priv/static/openapi.json` in the
   [`firezone/firezone`](https://github.com/firezone/firezone) monorepo
+- **Source commit:** `f5c540f87f2ffcdc14a4566550ff71fd2435630a` (2026-10-25 refresh)
 - **API version:** 1.0.0 (OpenAPI 3.0.0)
 
 Refresh it against a local monorepo checkout with:

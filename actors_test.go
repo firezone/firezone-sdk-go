@@ -141,3 +141,17 @@ func TestActorsService_List_Filters(t *testing.T) {
 		})
 	}
 }
+
+func TestActorsService_Get_DisabledByDirectory(t *testing.T) {
+	for _, directory := range []any{nil, "directory-1"} {
+		client := testutil.NewClient(t, testutil.JSONResponse(http.StatusOK, map[string]any{"data": map[string]any{"id": "actor-1", "is_disabled": true, "disabled_by_directory_id": directory}}))
+		actor, err := client.Actors.Get(context.Background(), "actor-1")
+		if err != nil {
+			t.Fatal(err)
+		}
+		want, _ := directory.(string)
+		if actor.DisabledByDirectoryID != want {
+			t.Errorf("DisabledByDirectoryID = %q, want %q", actor.DisabledByDirectoryID, want)
+		}
+	}
+}
